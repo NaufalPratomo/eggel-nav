@@ -69,25 +69,25 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
       <div
         className={`w-full max-w-md rounded-2xl p-5 shadow-2xl space-y-4 border transition-colors ${
           isDark
-            ? "bg-slate-900 border-slate-800 text-white"
+            ? "bg-[#18181c] border-[#27272e] text-white"
             : "bg-white border-slate-200 text-slate-900"
         }`}
       >
         {/* Header */}
         <div
           className={`flex items-center justify-between pb-3 border-b ${
-            isDark ? "border-slate-800" : "border-slate-200"
+            isDark ? "border-[#27272e]" : "border-slate-200"
           }`}
         >
           <div className="flex items-center gap-2">
-            <Settings className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            <Settings className={`w-5 h-5 ${isDark ? "text-[#d2fc15]" : "text-slate-800"}`} />
             <h2 className="text-base font-bold">{t("settingsTitle", language)}</h2>
           </div>
           <button
             onClick={onClose}
             className={`p-1 rounded-xl transition ${
               isDark
-                ? "text-slate-400 hover:text-white hover:bg-slate-800"
+                ? "text-zinc-400 hover:text-white hover:bg-[#222228]"
                 : "text-slate-400 hover:text-slate-900 hover:bg-slate-100"
             }`}
           >
@@ -100,17 +100,17 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
           {/* Language Selector */}
           <div>
             <label
-              className={`block text-xs font-semibold uppercase tracking-wider mb-1.5 flex items-center gap-1.5 ${
-                isDark ? "text-slate-400" : "text-slate-600"
+              className={`block text-xs font-bold uppercase tracking-wider mb-1.5 flex items-center gap-1.5 ${
+                isDark ? "text-zinc-400" : "text-slate-600"
               }`}
             >
-              <Globe className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <Globe className={`w-3.5 h-3.5 ${isDark ? "text-[#d2fc15]" : "text-slate-700"}`} />
               {t("languageLabel", language)}
             </label>
             <div
               className={`grid grid-cols-2 gap-2 p-1.5 rounded-xl border ${
                 isDark
-                  ? "bg-slate-800/60 border-slate-700/60"
+                  ? "bg-[#1f1f25] border-[#2c2c36]"
                   : "bg-slate-100 border-slate-200"
               }`}
             >
@@ -119,9 +119,11 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
                 onClick={() => setLanguage("id")}
                 className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 ${
                   language === "id"
-                    ? "bg-indigo-600 text-white shadow-sm"
+                    ? isDark
+                      ? "bg-[#d2fc15] text-[#0f0f12] shadow-sm font-black"
+                      : "bg-[#0f0f12] text-white shadow-sm font-bold"
                     : isDark
-                    ? "text-slate-400 hover:text-white"
+                    ? "text-zinc-400 hover:text-white"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
@@ -133,9 +135,11 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
                 onClick={() => setLanguage("en")}
                 className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 ${
                   language === "en"
-                    ? "bg-indigo-600 text-white shadow-sm"
+                    ? isDark
+                      ? "bg-[#d2fc15] text-[#0f0f12] shadow-sm font-black"
+                      : "bg-[#0f0f12] text-white shadow-sm font-bold"
                     : isDark
-                    ? "text-slate-400 hover:text-white"
+                    ? "text-zinc-400 hover:text-white"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
@@ -147,8 +151,8 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
 
           <div>
             <label
-              className={`block text-xs font-semibold uppercase tracking-wider mb-1 ${
-                isDark ? "text-slate-400" : "text-slate-600"
+              className={`block text-xs font-bold uppercase tracking-wider mb-1 ${
+                isDark ? "text-zinc-400" : "text-slate-600"
               }`}
             >
               {t("botTokenLabel", language)}
@@ -160,16 +164,16 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
               placeholder="e.g.: 8863619482:AAH..."
               className={`w-full rounded-xl px-3 py-2 font-mono text-xs border transition ${
                 isDark
-                  ? "bg-slate-800/80 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                  : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white"
+                  ? "bg-[#1f1f25] border-[#2c2c36] text-white placeholder-zinc-500 focus:outline-none focus:border-[#d2fc15]"
+                  : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-800 focus:bg-white"
               }`}
             />
           </div>
 
           <div>
             <label
-              className={`block text-xs font-semibold uppercase tracking-wider mb-1 ${
-                isDark ? "text-slate-400" : "text-slate-600"
+              className={`block text-xs font-bold uppercase tracking-wider mb-1 ${
+                isDark ? "text-zinc-400" : "text-slate-600"
               }`}
             >
               {t("chatIdLabel", language)}
@@ -181,8 +185,8 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
               placeholder="e.g.: 5694188432"
               className={`w-full rounded-xl px-3 py-2 font-mono text-xs border transition ${
                 isDark
-                  ? "bg-slate-800/80 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-                  : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white"
+                  ? "bg-[#1f1f25] border-[#2c2c36] text-white placeholder-zinc-500 focus:outline-none focus:border-[#d2fc15]"
+                  : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-800 focus:bg-white"
               }`}
             />
           </div>
@@ -190,8 +194,8 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
           <div className="grid grid-cols-2 gap-3 pt-1">
             <div>
               <label
-                className={`block text-xs font-semibold uppercase tracking-wider mb-1 ${
-                  isDark ? "text-slate-400" : "text-slate-600"
+                className={`block text-xs font-bold uppercase tracking-wider mb-1 ${
+                  isDark ? "text-zinc-400" : "text-slate-600"
                 }`}
               >
                 {t("alert1Label", language)}
@@ -202,20 +206,20 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
                 onChange={(e) => setAlert1Dist(e.target.value)}
                 min="50"
                 max="500"
-                className={`w-full rounded-xl px-3 py-2 font-semibold border transition ${
+                className={`w-full rounded-xl px-3 py-2 font-bold border transition ${
                   isDark
-                    ? "bg-slate-800/80 border-slate-700 text-white focus:outline-none focus:border-indigo-500"
-                    : "bg-slate-50 border-slate-200 text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white"
+                    ? "bg-[#1f1f25] border-[#2c2c36] text-white focus:outline-none focus:border-[#d2fc15]"
+                    : "bg-slate-50 border-slate-200 text-slate-900 focus:outline-none focus:border-slate-800 focus:bg-white"
                 }`}
               />
-              <span className="text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="text-[11px] text-zinc-400">
                 {t("alert1Desc", language)}
               </span>
             </div>
             <div>
               <label
-                className={`block text-xs font-semibold uppercase tracking-wider mb-1 ${
-                  isDark ? "text-slate-400" : "text-slate-600"
+                className={`block text-xs font-bold uppercase tracking-wider mb-1 ${
+                  isDark ? "text-zinc-400" : "text-slate-600"
                 }`}
               >
                 {t("alert2Label", language)}
@@ -226,13 +230,13 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
                 onChange={(e) => setAlert2Dist(e.target.value)}
                 min="15"
                 max="100"
-                className={`w-full rounded-xl px-3 py-2 font-semibold border transition ${
+                className={`w-full rounded-xl px-3 py-2 font-bold border transition ${
                   isDark
-                    ? "bg-slate-800/80 border-slate-700 text-white focus:outline-none focus:border-indigo-500"
-                    : "bg-slate-50 border-slate-200 text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white"
+                    ? "bg-[#1f1f25] border-[#2c2c36] text-white focus:outline-none focus:border-[#d2fc15]"
+                    : "bg-slate-50 border-slate-200 text-slate-900 focus:outline-none focus:border-slate-800 focus:bg-white"
                 }`}
               />
-              <span className="text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="text-[11px] text-zinc-400">
                 {t("alert2Desc", language)}
               </span>
             </div>
@@ -243,20 +247,20 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
             <button
               onClick={handleTestVibration}
               disabled={testing}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 font-semibold rounded-xl border transition active:scale-95 disabled:opacity-50 ${
+              className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 font-bold rounded-xl border transition active:scale-95 disabled:opacity-50 ${
                 isDark
-                  ? "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200"
+                  ? "bg-[#222228] hover:bg-[#2a2a32] border-[#2e2e38] text-zinc-200"
                   : "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-800"
               }`}
             >
-              <Bell className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <Bell className={`w-4 h-4 ${isDark ? "text-[#d2fc15]" : "text-slate-800"}`} />
               {testing ? t("testingVibration", language) : t("testVibrationBtn", language)}
             </button>
 
             {testStatus && (
               <p
-                className={`text-xs mt-2 text-center font-medium ${
-                  testStatus.ok ? "text-emerald-500" : "text-rose-500"
+                className={`text-xs mt-2 text-center font-bold ${
+                  testStatus.ok ? "text-emerald-400" : "text-rose-400"
                 }`}
               >
                 {testStatus.msg}
@@ -268,14 +272,14 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
         {/* Footer */}
         <div
           className={`pt-3 border-t flex justify-end gap-2 ${
-            isDark ? "border-slate-800" : "border-slate-200"
+            isDark ? "border-[#27272e]" : "border-slate-200"
           }`}
         >
           <button
             onClick={onClose}
             className={`px-4 py-2 rounded-xl transition font-medium text-sm ${
               isDark
-                ? "text-slate-400 hover:text-white"
+                ? "text-zinc-400 hover:text-white"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
@@ -283,7 +287,11 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
           </button>
           <button
             onClick={handleSave}
-            className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm shadow-sm transition active:scale-95"
+            className={`px-5 py-2 rounded-xl text-sm font-bold shadow-sm transition active:scale-95 ${
+              isDark
+                ? "bg-[#d2fc15] hover:bg-[#c2eb0a] text-[#0f0f12]"
+                : "bg-[#0f0f12] hover:bg-[#27272e] text-white"
+            }`}
           >
             {t("saveSettingsBtn", language)}
           </button>

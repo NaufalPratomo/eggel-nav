@@ -23,11 +23,11 @@ html, body, #root {
  * Eliminates need for any third-party paid/watermarked dark map API keys!
  */
 .dark-map .leaflet-container {
-  background: #0f172a !important;
+  background: #0f0f12 !important;
 }
 
 .dark-map .leaflet-tile-pane {
-  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.75);
+  filter: brightness(0.6) invert(1) contrast(2.6) hue-rotate(185deg) saturate(0.25) brightness(0.72);
 }
 
 /* Smooth tile transitions when switching theme */

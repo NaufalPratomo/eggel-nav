@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import L from "leaflet";
 
-// Custom icons using standard SVG / DivIcon to avoid missing Leaflet png assets
+// Custom user marker styled in Eggel Active sports branding (Carbon black + Electric Lime)
 const createUserIcon = (heading = 0) => {
   return L.divIcon({
     className: "custom-user-marker",
@@ -9,10 +9,10 @@ const createUserIcon = (heading = 0) => {
       <div style="
         width: 32px;
         height: 32px;
-        background: #4f46e5;
-        border: 3px solid #ffffff;
+        background: #121215;
+        border: 3px solid #d2fc15;
         border-radius: 50%;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -22,9 +22,9 @@ const createUserIcon = (heading = 0) => {
         <div style="
           width: 0;
           height: 0;
-          border-left: 6px solid transparent;
-          border-right: 6px solid transparent;
-          border-bottom: 12px solid #ffffff;
+          border-left: 5px solid transparent;
+          border-right: 5px solid transparent;
+          border-bottom: 11px solid #d2fc15;
           margin-bottom: 2px;
         "></div>
       </div>
@@ -34,18 +34,18 @@ const createUserIcon = (heading = 0) => {
   });
 };
 
-// Destination pin styled like modern iOS transit app (mint green circle with flag/point)
+// Destination pin styled in Eggel Cyan (#38bdf8, matching Eggel location pin)
 const destIcon = L.divIcon({
   className: "custom-dest-marker",
   html: `
     <div style="
       width: 36px;
       height: 36px;
-      background: #10b981;
+      background: #38bdf8;
       border: 3px solid #ffffff;
       border-radius: 50% 50% 50% 0;
       transform: rotate(-45deg);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -53,7 +53,7 @@ const destIcon = L.divIcon({
       <div style="
         width: 12px;
         height: 12px;
-        background: #ffffff;
+        background: #121215;
         border-radius: 50%;
         transform: rotate(45deg);
       "></div>
@@ -201,12 +201,12 @@ export default function Map({
     // GeoJSON coordinates are [lng, lat], Leaflet polyline expects [lat, lng]
     const latlngs = routeGeometry.coordinates.map(([lng, lat]) => [lat, lng]);
 
-    const routeColor = theme === "dark" ? "#38bdf8" : "#4f46e5";
+    const routeColor = theme === "dark" ? "#d2fc15" : "#0f0f12";
 
     const polyline = L.polyline(latlngs, {
       color: routeColor,
       weight: 6,
-      opacity: 0.92,
+      opacity: 0.95,
       lineCap: "round",
       lineJoin: "round",
     }).addTo(map);

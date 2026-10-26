@@ -51,7 +51,7 @@ export default function SearchModal({
       <div
         className={`w-full max-w-md rounded-2xl p-4 shadow-2xl space-y-4 border transition-colors ${
           isDark
-            ? "bg-slate-900 border-slate-800 text-white"
+            ? "bg-[#18181c] border-[#27272e] text-white"
             : "bg-white border-slate-200 text-slate-900"
         }`}
       >
@@ -67,15 +67,19 @@ export default function SearchModal({
               placeholder={t("searchPlaceholder", lang)}
               className={`w-full rounded-xl pl-9 pr-3 py-2.5 text-sm border transition ${
                 isDark
-                  ? "bg-slate-800 border-slate-700 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
-                  : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white"
+                  ? "bg-[#1f1f25] border-[#2c2c36] text-white placeholder-zinc-500 focus:outline-none focus:border-[#d2fc15]"
+                  : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-800 focus:bg-white"
               }`}
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm transition shrink-0 active:scale-95 disabled:opacity-50 shadow-sm"
+            className={`px-4 py-2.5 rounded-xl text-sm font-bold transition shrink-0 active:scale-95 disabled:opacity-50 shadow-sm ${
+              isDark
+                ? "bg-[#d2fc15] hover:bg-[#c2eb0a] text-[#0f0f12]"
+                : "bg-[#0f0f12] hover:bg-[#27272e] text-white"
+            }`}
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : t("searchBtn", lang)}
           </button>
@@ -84,7 +88,7 @@ export default function SearchModal({
             onClick={onClose}
             className={`p-2 rounded-xl transition ${
               isDark
-                ? "text-slate-400 hover:text-white hover:bg-slate-800"
+                ? "text-zinc-400 hover:text-white hover:bg-[#222228]"
                 : "text-slate-400 hover:text-slate-900 hover:bg-slate-100"
             }`}
           >
@@ -95,7 +99,7 @@ export default function SearchModal({
         {/* Results List */}
         <div
           className={`max-h-60 overflow-y-auto space-y-1 divide-y ${
-            isDark ? "divide-slate-800/60" : "divide-slate-100"
+            isDark ? "divide-[#27272e]" : "divide-slate-100"
           }`}
         >
           {results.length > 0 ? (
@@ -104,10 +108,14 @@ export default function SearchModal({
                 key={item.id}
                 onClick={() => handleSelect(item)}
                 className={`w-full text-left p-2.5 rounded-xl transition flex items-start gap-3 group ${
-                  isDark ? "hover:bg-slate-800/70" : "hover:bg-slate-50"
+                  isDark ? "hover:bg-[#222228]" : "hover:bg-slate-50"
                 }`}
               >
-                <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition mt-0.5">
+                <div className={`p-2 rounded-lg transition mt-0.5 ${
+                  isDark
+                    ? "bg-[#222228] text-[#38bdf8] group-hover:bg-[#38bdf8] group-hover:text-[#0f0f12]"
+                    : "bg-sky-50 text-sky-600 group-hover:bg-sky-600 group-hover:text-white"
+                }`}>
                   <MapPin className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -120,7 +128,7 @@ export default function SearchModal({
                   </p>
                   <p
                     className={`text-xs truncate mt-0.5 ${
-                      isDark ? "text-slate-400" : "text-slate-500"
+                      isDark ? "text-zinc-400" : "text-slate-500"
                     }`}
                   >
                     {item.description}
@@ -131,7 +139,7 @@ export default function SearchModal({
           ) : query && !loading ? (
             <p
               className={`text-center text-xs py-6 ${
-                isDark ? "text-slate-400" : "text-slate-500"
+                isDark ? "text-zinc-400" : "text-slate-500"
               }`}
             >
               {t("noPlacesFound", lang)}
