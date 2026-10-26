@@ -49,7 +49,7 @@ export default function SearchModal({
       const data = await searchPlaces(trimmed, userPosition);
       setResults(data);
       setLoading(false);
-    }, 350);
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [query, isOpen, userPosition]);
