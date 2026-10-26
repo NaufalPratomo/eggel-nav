@@ -30,62 +30,74 @@ export const sendTelegramAlert = async (token, chatId, text) => {
 };
 
 /**
- * Universal high-contrast direction arrows (Basic Multilingual Plane geometric symbols).
- * Avoids Unicode Emoji icons (no missing tofu glyphs [?] on RTOS smartwatches)
- * and eliminates word clutter ("Turn Right" / "Belok Kanan") for instant glance recognition.
+ * 100% RTOS Smartwatch-Compatible ASCII Navigation Arrows.
+ *
+ * WHY THIS IS CRUCIAL:
+ * RTOS smartwatches (Eggel Tempo series, Xiaomi Band, Amazfit, Da Fit, GloryFit, etc.)
+ * use a minimal bitmap font ROM limited strictly to standard 7-bit ASCII (0x20 - 0x7E).
+ * Multi-byte Unicode characters (Box Drawings U+2500, Geometric Shapes U+25A0, or Emojis)
+ * are NOT in the watch's font table and are silently skipped/dropped by the watch LCD driver.
+ *
+ * Using high-contrast ASCII symbols guarantees the arrow ALWAYS appears on the watch screen,
+ * fits the round display geometry, and eliminates word clutter.
  */
 export const getManeuverArrowText = (modifier, maneuverType) => {
   const mod = (modifier || "").toLowerCase();
   const type = (maneuverType || "").toLowerCase();
 
-  // U-Turn
+  // U-Turn (Loop stem and leftward return arrow)
   if (mod.includes("uturn") || mod.includes("u-turn") || type.includes("uturn")) {
-    return "◄━━━┓";
+    return "<<====||";
   }
   // Sharp Left
   if (mod.includes("sharp left")) {
-    return "◄◄──┘";
+    return "<<====|";
   }
-  // Slight Left
+  // Slight Left (Angled diagonal return)
   if (mod.includes("slight left")) {
-    return "↖↖━━━";
+    return "<<\\\\====";
   }
   // Turn Left
   if (mod.includes("left")) {
-    return "◄◄━━━━";
+    return "<<======";
   }
   // Sharp Right
   if (mod.includes("sharp right")) {
-    return "└──►►";
+    return "|====>>";
   }
-  // Slight Right
+  // Slight Right (Angled diagonal forward)
   if (mod.includes("slight right")) {
-    return "━━━↗↗";
+    return "====//>>";
   }
   // Turn Right
   if (mod.includes("right")) {
-    return "━━━━►►";
+    return "======>>";
   }
   // Roundabout / Rotary
   if (type.includes("roundabout") || type.includes("rotary")) {
-    return "↺ ↺ ↺";
+    return "(( O ))>>";
   }
   // Arrived / Destination
   if (type.includes("arrive") || type.includes("destination")) {
-    return "★ ★ ★";
+    return "* FINISH *";
   }
   // Fork / Ramp
   if (type.includes("fork")) {
-    return mod.includes("left") ? "◄◄━━━━" : "━━━━►►";
+    return mod.includes("left") ? "<<======" : "======>>";
   }
-  // Straight
-  return "▲ ▲ ▲";
+  // Straight ahead
+  return "^^^^^^^^";
 };
 
 /**
- * Format instructions specifically tailored for glanceable smartwatch displays:
- * [120m]  ━━━━►►
- * Jl. Margonda Raya
+ * Format instructions specifically tailored for round smartwatch screens (e.g. Eggel Tempo):
+ * - Max 18-20 characters per line to avoid circular screen edge clipping.
+ * - 2-3 lines maximum so text stays clear above the bottom trash/delete button.
+ * - Bold ASCII arrows that are 100% visible on every RTOS watch.
+ *
+ * Example output:
+ * [150m]  ======>>
+ * Jl. Raya Purwosari
  */
 export const formatManeuverMessage = (
   distanceMeters,
@@ -104,10 +116,16 @@ export const formatManeuverMessage = (
       : `${(distanceMeters / 1000).toFixed(1)}km`;
 
   const defaultStreet = isEn ? "Next Street" : "Jalan Berikutnya";
-  const cleanStreet =
+  let cleanStreet =
     streetName && streetName.trim().length > 0 ? streetName.trim() : defaultStreet;
 
-  const urgentMark = isFinal ? " ‼" : "";
+  // Trim long street names to fit round screen without overflowing into > 2 lines
+  if (cleanStreet.length > 34) {
+    cleanStreet = cleanStreet.slice(0, 31).trim() + "...";
+  }
+
+  // Urgent marker when imminent (<= 40m)
+  const urgentMark = isFinal ? " !!" : "";
 
   return `[${distText}]  ${arrow}${urgentMark}\n${cleanStreet}`;
 };

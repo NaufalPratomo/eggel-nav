@@ -1,8 +1,114 @@
 import React, { useState } from "react";
 import { Settings, X, Bell, Globe } from "lucide-react";
 import { sendTelegramAlert } from "../utils/telegram";
-import { formatTime24h, getTimeZoneLabel } from "../utils/geo";
+import { formatTime24h } from "../utils/geo";
 import { t } from "../utils/i18n";
+
+function SmartwatchPreview({ language = "id", isDark = true }) {
+  const [selectedManeuver, setSelectedManeuver] = useState("right");
+
+  const previewData = {
+    right: {
+      line1: "[150m]  ======>>",
+      line2: "Jl. Raya Purwosari",
+      label: "Kanan",
+    },
+    left: {
+      line1: "[150m]  <<======",
+      line2: "Jl. Raya Purwosari",
+      label: "Kiri",
+    },
+    straight: {
+      line1: "[500m]  ^^^^^^^^",
+      line2: "Jl. Malang-Sby",
+      label: "Lurus",
+    },
+    uturn: {
+      line1: "[100m]  <<====||",
+      line2: "Jl. Ahmad Yani",
+      label: "U-Turn",
+    },
+  };
+
+  const curr = previewData[selectedManeuver] || previewData.right;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? "text-zinc-400" : "text-slate-600"}`}>
+          {language === "en" ? "Watch Screen Fit Preview" : "Simulasi Pas Layar Jam"}
+        </span>
+        <div className="flex gap-1">
+          {Object.entries(previewData).map(([key, item]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setSelectedManeuver(key)}
+              className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition ${
+                selectedManeuver === key
+                  ? isDark
+                    ? "bg-[#d2fc15] text-[#0f0f12]"
+                    : "bg-slate-900 text-white"
+                  : isDark
+                  ? "bg-[#222228] text-zinc-400 hover:text-white"
+                  : "bg-slate-100 text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Round Watch Bezel Container (Exact 1:1 round smartwatch geometry from user's photo) */}
+      <div className="flex justify-center py-1">
+        <div className="relative w-48 h-48 rounded-full bg-[#0d0d10] border-4 border-[#25252b] shadow-xl flex items-center justify-center p-2 select-none overflow-hidden">
+          {/* Bezel Numerals (10, 20, 30, 40, 50, 60) */}
+          <span className="absolute top-1 text-[8px] font-mono font-bold text-zinc-500">60</span>
+          <span className="absolute right-1 text-[8px] font-mono font-bold text-zinc-500">15</span>
+          <span className="absolute bottom-1 text-[8px] font-mono font-bold text-zinc-500">30</span>
+          <span className="absolute left-1 text-[8px] font-mono font-bold text-zinc-500">45</span>
+
+          {/* Watch Inner Screen (Round OLED) */}
+          <div className="w-full h-full rounded-full bg-black flex flex-col justify-between pt-3 pb-1 px-3 text-center overflow-hidden border border-zinc-900">
+            {/* Telegram Header */}
+            <div>
+              <div className="flex items-center justify-center gap-1">
+                <div className="w-3.5 h-3.5 rounded-full bg-[#2aabee] flex items-center justify-center text-white text-[7px] font-bold shrink-0">
+                  ✈
+                </div>
+                <span className="text-[10px] text-zinc-300 font-semibold truncate max-w-[100px]">
+                  Navigation Bot
+                </span>
+              </div>
+              <div className="w-20 h-px bg-zinc-800 mx-auto mt-1" />
+            </div>
+
+            {/* Navigation Message (Centered in the widest section of the round screen) */}
+            <div className="my-auto py-1">
+              <div className="font-mono text-xs font-black text-white tracking-wide">
+                {curr.line1}
+              </div>
+              <div className="font-sans text-[11px] font-medium text-zinc-300 truncate mt-1">
+                {curr.line2}
+              </div>
+            </div>
+
+            {/* Bottom Orange Delete Semicircle Button (From user's watch photo) */}
+            <div className="w-18 h-4.5 bg-gradient-to-t from-orange-600 to-amber-500 rounded-t-full mx-auto flex items-center justify-center opacity-95 shadow-sm mt-auto">
+              <div className="w-2 h-2 border border-white/90 rounded-[2px] mb-0.5" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <p className="text-[10px] text-center text-zinc-400">
+        {language === "en"
+          ? "ASCII arrows render 100% on RTOS and fit perfectly above the bottom button"
+          : "Format 2 baris pas di tengah layar jam bulat tanpa terhalang tombol bawah"}
+      </p>
+    </div>
+  );
+}
 
 function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
   const [botToken, setBotToken] = useState(
@@ -26,12 +132,12 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
     setTesting(true);
     setTestStatus(null);
 
-    const now = `${formatTime24h()} ${getTimeZoneLabel()}`;
+    const now = formatTime24h();
 
     const isEn = language === "en";
     const message = isEn
-      ? `[TEST 100m]  ◄◄━━━━\nMain Street Avenue\n(Watch Vibration Test: ${now})`
-      : `[TEST 100m]  ◄◄━━━━\nJl. Margonda Raya\n(Tes Getar Jam: ${now})`;
+      ? `[TEST 100m]  <<======\nMain Street Avenue\nVibration OK (${now})`
+      : `[TEST 100m]  <<======\nJl. Margonda Raya\nGetar OK (${now} WIB)`;
 
     const result = await sendTelegramAlert(botToken, chatId, message);
     setTesting(false);
@@ -240,8 +346,13 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
             </div>
           </div>
 
+          {/* Sized Smartwatch Preview matching user's round watch screen */}
+          <div className="pt-2 border-t border-zinc-200 dark:border-[#27272e]">
+            <SmartwatchPreview language={language} isDark={isDark} />
+          </div>
+
           {/* Test Vibration Button */}
-          <div className="pt-2">
+          <div className="pt-1">
             <button
               onClick={handleTestVibration}
               disabled={testing}

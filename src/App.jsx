@@ -175,7 +175,7 @@ export default function App() {
     isNavigatingRef.current = false;
     keepAlive.stop();
     const isEn = settingsRef.current?.language === "en";
-    const stopMsg = isEn ? "⏹️ NAVIGATION ENDED" : "⏹️ NAVIGASI DIAKHIRI";
+    const stopMsg = isEn ? "[STOP]  * * *\nNavigation Ended" : "[SELESAI]  * * *\nNavigasi Selesai";
     sendTelegramAlert(settingsRef.current.botToken, settingsRef.current.chatId, stopMsg);
     setLastAlertSent(null);
   }, []);
@@ -194,9 +194,10 @@ export default function App() {
 
       // Final destination reached
       if (idx >= steps.length) {
+        const cleanDestName = (activeDest?.name || "Tujuan").slice(0, 28);
         const arriveMsg = isEn
-          ? `ARRIVED AT DESTINATION\nYou have reached ${activeDest?.name || "Destination"}!`
-          : `TIBA DI TUJUAN\nAnda telah sampai di ${activeDest?.name || "Tujuan"}!`;
+          ? `[ARRIVED]  * FINISH *\n${cleanDestName}`
+          : `[TIBA]  * FINISH *\n${cleanDestName}`;
         sendTelegramAlert(activeSettings.botToken, activeSettings.chatId, arriveMsg);
         setLastAlertSent(t("arrived", activeSettings.language));
         handleStopNavigation();
@@ -348,8 +349,8 @@ export default function App() {
                 minDist: Infinity,
               };
               const rerouteMsg = isEn
-                ? "ROUTE RECALCULATED\nFollowing new route..."
-                : "RUTE DIHITUNG ULANG\nMengikuti rute baru...";
+                ? "[REROUTE]  ^^^^^^^^\nRecalculating..."
+                : "[RUTE BARU]  ^^^^^^^^\nMenghitung rute...";
               sendTelegramAlert(
                 activeSettings.botToken,
                 activeSettings.chatId,
@@ -583,9 +584,10 @@ export default function App() {
 
     // Send initial Telegram notification to confirm connection with smartwatch
     const isEn = lang === "en";
+    const cleanStartDest = (destination?.name || "Tujuan").slice(0, 24);
     const startMsg = isEn
-      ? `NAVIGATION STARTED\nDestination: ${destination?.name || "Destination"}\nDistance: ${formatDistance(route.distance)} (${formatDuration(route.duration, "en")})`
-      : `NAVIGASI DIMULAI\nTujuan: ${destination?.name || "Tujuan"}\nJarak: ${formatDistance(route.distance)} (${formatDuration(route.duration, "id")})`;
+      ? `[START]  ^^^^^^^^\n${cleanStartDest}\n${formatDistance(activeRoute.distance)}`
+      : `[MULAI]  ^^^^^^^^\n${cleanStartDest}\n${formatDistance(activeRoute.distance)}`;
     sendTelegramAlert(settings.botToken, settings.chatId, startMsg);
     setLastAlertSent(t("navStarted", lang));
   };
