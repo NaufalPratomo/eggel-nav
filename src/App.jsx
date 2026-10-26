@@ -402,11 +402,22 @@ export default function App() {
           }
         }
 
+        let finalSpeed = computedSpeed || 0;
+        // Suppress stationary GPS drift (< 2 meters) and apply smoothing filter
+        if (prev) {
+          const moveDist = calculateHaversineDistance(prev.lat, prev.lng, latitude, longitude);
+          if (moveDist < 2.0 && (!speed || speed < 0.5)) {
+            finalSpeed = 0;
+          } else if (prev.speed != null && prev.speed > 0) {
+            finalSpeed = 0.4 * finalSpeed + 0.6 * prev.speed;
+          }
+        }
+
         const newPos = {
           lat: latitude,
           lng: longitude,
           heading: computedHeading || 0,
-          speed: computedSpeed || 0,
+          speed: Math.max(0, finalSpeed),
           accuracy: accuracy,
           timestamp: pos.timestamp,
         };
@@ -557,7 +568,7 @@ export default function App() {
   const totalRemainingDistance = useMemo(() => {
     if (!route || !route.steps || currentStepIndex >= route.steps.length) return 0;
     let dist = distToNextStep;
-    for (let i = currentStepIndex; i < route.steps.length; i++) {
+    for (let i = currentStepIndex + 1; i < route.steps.length; i++) {
       dist += route.steps[i].distance;
     }
     return Math.round(dist);
