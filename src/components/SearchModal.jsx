@@ -8,10 +8,13 @@ export default function SearchModal({
   onClose,
   onSelectDestination,
   lang = "id",
+  theme = "light",
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  const isDark = theme === "dark";
 
   useEffect(() => {
     if (!isOpen) return;
@@ -45,7 +48,13 @@ export default function SearchModal({
 
   return (
     <div className="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-sm flex items-start justify-center p-4 pt-12">
-      <div className="bg-slate-900 border border-slate-800 text-white w-full max-w-md rounded-2xl p-4 shadow-2xl space-y-4">
+      <div
+        className={`w-full max-w-md rounded-2xl p-4 shadow-2xl space-y-4 border transition-colors ${
+          isDark
+            ? "bg-slate-900 border-slate-800 text-white"
+            : "bg-white border-slate-200 text-slate-900"
+        }`}
+      >
         {/* Search Input */}
         <form onSubmit={handleSearch} className="relative flex items-center gap-2">
           <div className="relative flex-1">
@@ -56,7 +65,11 @@ export default function SearchModal({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("searchPlaceholder", lang)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+              className={`w-full rounded-xl pl-9 pr-3 py-2.5 text-sm border transition ${
+                isDark
+                  ? "bg-slate-800 border-slate-700 text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+                  : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white"
+              }`}
             />
           </div>
           <button
@@ -69,40 +82,66 @@ export default function SearchModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            className={`p-2 rounded-xl transition ${
+              isDark
+                ? "text-slate-400 hover:text-white hover:bg-slate-800"
+                : "text-slate-400 hover:text-slate-900 hover:bg-slate-100"
+            }`}
           >
             <X className="w-5 h-5" />
           </button>
         </form>
 
         {/* Results List */}
-        <div className="max-h-60 overflow-y-auto space-y-1 divide-y divide-slate-800/60">
+        <div
+          className={`max-h-60 overflow-y-auto space-y-1 divide-y ${
+            isDark ? "divide-slate-800/60" : "divide-slate-100"
+          }`}
+        >
           {results.length > 0 ? (
             results.map((item) => (
               <button
                 key={item.id}
                 onClick={() => handleSelect(item)}
-                className="w-full text-left p-2.5 hover:bg-slate-800/70 rounded-xl transition flex items-start gap-3 group"
+                className={`w-full text-left p-2.5 rounded-xl transition flex items-start gap-3 group ${
+                  isDark ? "hover:bg-slate-800/70" : "hover:bg-slate-50"
+                }`}
               >
-                <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition mt-0.5">
+                <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition mt-0.5">
                   <MapPin className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">
+                  <p
+                    className={`text-sm font-semibold truncate ${
+                      isDark ? "text-white" : "text-slate-900"
+                    }`}
+                  >
                     {item.name}
                   </p>
-                  <p className="text-xs text-slate-400 truncate mt-0.5">
+                  <p
+                    className={`text-xs truncate mt-0.5 ${
+                      isDark ? "text-slate-400" : "text-slate-500"
+                    }`}
+                  >
                     {item.description}
                   </p>
                 </div>
               </button>
             ))
           ) : query && !loading ? (
-            <p className="text-center text-xs text-slate-400 py-6">
+            <p
+              className={`text-center text-xs py-6 ${
+                isDark ? "text-slate-400" : "text-slate-500"
+              }`}
+            >
               {t("noPlacesFound", lang)}
             </p>
           ) : (
-            <div className="text-center py-6 text-xs text-slate-400">
+            <div
+              className={`text-center py-6 text-xs ${
+                isDark ? "text-slate-400" : "text-slate-500"
+              }`}
+            >
               <p>{t("searchHint", lang)}</p>
             </div>
           )}

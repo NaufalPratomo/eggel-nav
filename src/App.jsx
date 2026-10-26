@@ -892,6 +892,7 @@ export default function App() {
         onClose={() => setIsSearchOpen(false)}
         onSelectDestination={handleSelectDestination}
         lang={lang}
+        theme={theme}
       />
 
       {/* Settings Modal */}
@@ -900,6 +901,7 @@ export default function App() {
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onSaveSettings={handleSaveSettings}
+        theme={theme}
       />
     </div>
   );

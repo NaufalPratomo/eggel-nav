@@ -3,7 +3,7 @@ import { Settings, X, Bell, Globe } from "lucide-react";
 import { sendTelegramAlert } from "../utils/telegram";
 import { t } from "../utils/i18n";
 
-function SettingsForm({ settings, onClose, onSaveSettings }) {
+function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
   const [botToken, setBotToken] = useState(
     settings?.botToken || "8863619482:AAH_lEWklKmguELcK3ZJ_LoEdbMrOYwmkWk"
   );
@@ -13,6 +13,8 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
   const [language, setLanguage] = useState(settings?.language || "id");
   const [testStatus, setTestStatus] = useState(null);
   const [testing, setTesting] = useState(false);
+
+  const isDark = theme === "dark";
 
   const handleTestVibration = async () => {
     if (!botToken || !chatId) {
@@ -64,16 +66,30 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
 
   return (
     <div className="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 text-white w-full max-w-md rounded-2xl p-5 shadow-xl space-y-4">
+      <div
+        className={`w-full max-w-md rounded-2xl p-5 shadow-2xl space-y-4 border transition-colors ${
+          isDark
+            ? "bg-slate-900 border-slate-800 text-white"
+            : "bg-white border-slate-200 text-slate-900"
+        }`}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div
+          className={`flex items-center justify-between pb-3 border-b ${
+            isDark ? "border-slate-800" : "border-slate-200"
+          }`}
+        >
           <div className="flex items-center gap-2">
-            <Settings className="w-5 h-5 text-indigo-400" />
+            <Settings className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             <h2 className="text-base font-bold">{t("settingsTitle", language)}</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            className={`p-1 rounded-xl transition ${
+              isDark
+                ? "text-slate-400 hover:text-white hover:bg-slate-800"
+                : "text-slate-400 hover:text-slate-900 hover:bg-slate-100"
+            }`}
           >
             <X className="w-5 h-5" />
           </button>
@@ -83,18 +99,30 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
         <div className="space-y-3.5 text-sm">
           {/* Language Selector */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1.5">
-              <Globe className="w-3.5 h-3.5 text-indigo-400" />
+            <label
+              className={`block text-xs font-semibold uppercase tracking-wider mb-1.5 flex items-center gap-1.5 ${
+                isDark ? "text-slate-400" : "text-slate-600"
+              }`}
+            >
+              <Globe className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
               {t("languageLabel", language)}
             </label>
-            <div className="grid grid-cols-2 gap-2 bg-slate-800/60 p-1.5 rounded-xl border border-slate-700/60">
+            <div
+              className={`grid grid-cols-2 gap-2 p-1.5 rounded-xl border ${
+                isDark
+                  ? "bg-slate-800/60 border-slate-700/60"
+                  : "bg-slate-100 border-slate-200"
+              }`}
+            >
               <button
                 type="button"
                 onClick={() => setLanguage("id")}
                 className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 ${
                   language === "id"
                     ? "bg-indigo-600 text-white shadow-sm"
-                    : "text-slate-400 hover:text-white"
+                    : isDark
+                    ? "text-slate-400 hover:text-white"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
               >
                 <span>🇮🇩</span>
@@ -106,7 +134,9 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
                 className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 ${
                   language === "en"
                     ? "bg-indigo-600 text-white shadow-sm"
-                    : "text-slate-400 hover:text-white"
+                    : isDark
+                    ? "text-slate-400 hover:text-white"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
               >
                 <span>🇬🇧</span>
@@ -116,7 +146,11 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            <label
+              className={`block text-xs font-semibold uppercase tracking-wider mb-1 ${
+                isDark ? "text-slate-400" : "text-slate-600"
+              }`}
+            >
               {t("botTokenLabel", language)}
             </label>
             <input
@@ -124,12 +158,20 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
               value={botToken}
               onChange={(e) => setBotToken(e.target.value)}
               placeholder="e.g.: 8863619482:AAH..."
-              className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono text-xs"
+              className={`w-full rounded-xl px-3 py-2 font-mono text-xs border transition ${
+                isDark
+                  ? "bg-slate-800/80 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white"
+              }`}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            <label
+              className={`block text-xs font-semibold uppercase tracking-wider mb-1 ${
+                isDark ? "text-slate-400" : "text-slate-600"
+              }`}
+            >
               {t("chatIdLabel", language)}
             </label>
             <input
@@ -137,13 +179,21 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
               value={chatId}
               onChange={(e) => setChatId(e.target.value)}
               placeholder="e.g.: 5694188432"
-              className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono text-xs"
+              className={`w-full rounded-xl px-3 py-2 font-mono text-xs border transition ${
+                isDark
+                  ? "bg-slate-800/80 border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white"
+              }`}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3 pt-1">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+              <label
+                className={`block text-xs font-semibold uppercase tracking-wider mb-1 ${
+                  isDark ? "text-slate-400" : "text-slate-600"
+                }`}
+              >
                 {t("alert1Label", language)}
               </label>
               <input
@@ -152,12 +202,22 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
                 onChange={(e) => setAlert1Dist(e.target.value)}
                 min="50"
                 max="500"
-                className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500 font-semibold"
+                className={`w-full rounded-xl px-3 py-2 font-semibold border transition ${
+                  isDark
+                    ? "bg-slate-800/80 border-slate-700 text-white focus:outline-none focus:border-indigo-500"
+                    : "bg-slate-50 border-slate-200 text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white"
+                }`}
               />
-              <span className="text-[11px] text-slate-500">{t("alert1Desc", language)}</span>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                {t("alert1Desc", language)}
+              </span>
             </div>
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+              <label
+                className={`block text-xs font-semibold uppercase tracking-wider mb-1 ${
+                  isDark ? "text-slate-400" : "text-slate-600"
+                }`}
+              >
                 {t("alert2Label", language)}
               </label>
               <input
@@ -166,9 +226,15 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
                 onChange={(e) => setAlert2Dist(e.target.value)}
                 min="15"
                 max="100"
-                className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500 font-semibold"
+                className={`w-full rounded-xl px-3 py-2 font-semibold border transition ${
+                  isDark
+                    ? "bg-slate-800/80 border-slate-700 text-white focus:outline-none focus:border-indigo-500"
+                    : "bg-slate-50 border-slate-200 text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white"
+                }`}
               />
-              <span className="text-[11px] text-slate-500">{t("alert2Desc", language)}</span>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                {t("alert2Desc", language)}
+              </span>
             </div>
           </div>
 
@@ -177,16 +243,20 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
             <button
               onClick={handleTestVibration}
               disabled={testing}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-200 font-semibold rounded-xl transition active:scale-95 disabled:opacity-50"
+              className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 font-semibold rounded-xl border transition active:scale-95 disabled:opacity-50 ${
+                isDark
+                  ? "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200"
+                  : "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-800"
+              }`}
             >
-              <Bell className="w-4 h-4 text-indigo-400" />
+              <Bell className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
               {testing ? t("testingVibration", language) : t("testVibrationBtn", language)}
             </button>
 
             {testStatus && (
               <p
                 className={`text-xs mt-2 text-center font-medium ${
-                  testStatus.ok ? "text-emerald-400" : "text-rose-400"
+                  testStatus.ok ? "text-emerald-500" : "text-rose-500"
                 }`}
               >
                 {testStatus.msg}
@@ -196,10 +266,18 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
         </div>
 
         {/* Footer */}
-        <div className="pt-3 border-t border-slate-800 flex justify-end gap-2">
+        <div
+          className={`pt-3 border-t flex justify-end gap-2 ${
+            isDark ? "border-slate-800" : "border-slate-200"
+          }`}
+        >
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-slate-400 hover:text-white transition font-medium text-sm"
+            className={`px-4 py-2 rounded-xl transition font-medium text-sm ${
+              isDark
+                ? "text-slate-400 hover:text-white"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
           >
             {t("cancelBtn", language)}
           </button>
@@ -220,6 +298,7 @@ export default function SettingsModal({
   onClose,
   settings,
   onSaveSettings,
+  theme = "light",
 }) {
   if (!isOpen) return null;
   return (
@@ -227,6 +306,7 @@ export default function SettingsModal({
       settings={settings}
       onClose={onClose}
       onSaveSettings={onSaveSettings}
+      theme={theme}
     />
   );
 }
