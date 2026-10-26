@@ -88,3 +88,31 @@ export const calculateDistanceToPolyline = (pLat, pLng, coordinates) => {
   return min;
 };
 
+/**
+ * Detect local Indonesian timezone label (WIB, WITA, WIT) or fallback to WIB
+ */
+export const getTimeZoneLabel = () => {
+  try {
+    const offset = -new Date().getTimezoneOffset() / 60;
+    if (offset === 7) return "WIB";
+    if (offset === 8) return "WITA";
+    if (offset === 9) return "WIT";
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz && (tz.includes("Jakarta") || tz.includes("Pontianak"))) return "WIB";
+    if (tz && (tz.includes("Makassar") || tz.includes("Ujung_Pandang"))) return "WITA";
+    if (tz && tz.includes("Jayapura")) return "WIT";
+  } catch {
+    // Fallback
+  }
+  return "WIB";
+};
+
+/**
+ * Format time in clean 24-hour HH:mm format
+ */
+export const formatTime24h = (date = new Date()) => {
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
+};
+

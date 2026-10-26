@@ -565,21 +565,24 @@ export default function App() {
 
   const totalRemainingDuration = useMemo(() => {
     if (!route || !route.steps || currentStepIndex >= route.steps.length) return 0;
-    if (userPosition && userPosition.speed > 2) {
-      return Math.max(0, Math.round(totalRemainingDistance / userPosition.speed));
+
+    let remainingDur = 0;
+    // Sum duration of upcoming steps
+    for (let i = currentStepIndex + 1; i < route.steps.length; i++) {
+      remainingDur += route.steps[i].duration;
     }
-    let dur = 0;
-    for (let i = currentStepIndex; i < route.steps.length; i++) {
-      dur += route.steps[i].duration;
-    }
-    const prevStep = currentStepIndex > 0 ? route.steps[currentStepIndex - 1] : null;
-    if (prevStep && prevStep.distance > 0) {
-      dur += (distToNextStep / prevStep.distance) * prevStep.duration;
+
+    // Add remaining duration for the active step
+    const activeStep = route.steps[currentStepIndex];
+    if (activeStep && activeStep.distance > 0) {
+      const stepRatio = Math.min(1, Math.max(0, distToNextStep / activeStep.distance));
+      remainingDur += activeStep.duration * stepRatio;
     } else {
-      dur += distToNextStep / 7;
+      remainingDur += distToNextStep / 8.3; // fallback ~30 km/h
     }
-    return Math.max(0, Math.round(dur));
-  }, [route, currentStepIndex, distToNextStep, totalRemainingDistance, userPosition]);
+
+    return Math.max(0, Math.round(remainingDur));
+  }, [route, currentStepIndex, distToNextStep]);
 
   return (
     <div

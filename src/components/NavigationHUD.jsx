@@ -13,7 +13,7 @@ import {
   Navigation as NavIcon,
   Timer,
 } from "lucide-react";
-import { formatDistance, formatDuration } from "../utils/geo";
+import { formatDistance, formatDuration, formatTime24h, getTimeZoneLabel } from "../utils/geo";
 import { t } from "../utils/i18n";
 
 const getManeuverIcon = (modifier, type, theme = "light") => {
@@ -99,14 +99,9 @@ export default function NavigationHUD({
   }, []);
 
   const arrivalTime = useMemo(() => {
-    return new Date(clock + (totalRemainingDuration || 0) * 1000).toLocaleTimeString(
-      lang === "en" ? "en-US" : "id-ID",
-      {
-        hour: "2-digit",
-        minute: "2-digit",
-      }
-    );
-  }, [clock, totalRemainingDuration, lang]);
+    const targetDate = new Date(clock + (totalRemainingDuration || 0) * 1000);
+    return formatTime24h(targetDate);
+  }, [clock, totalRemainingDuration]);
 
   const isDark = theme === "dark";
 
@@ -212,7 +207,7 @@ export default function NavigationHUD({
               {formatDuration(totalRemainingDuration, lang)}
             </div>
             <span className="text-[10px] text-zinc-400 font-medium">
-              {speedKmh} km/h
+              {lang === "en" ? "Speed: " : "Kecepatan: "}{speedKmh} km/h
             </span>
           </div>
 
@@ -253,7 +248,9 @@ export default function NavigationHUD({
             >
               {arrivalTime}
             </div>
-            <span className="text-[10px] text-zinc-400 font-medium">{t("timeZone", lang)}</span>
+            <span className="text-[10px] text-zinc-400 font-bold tracking-wider">
+              {getTimeZoneLabel()}
+            </span>
           </div>
         </div>
 
