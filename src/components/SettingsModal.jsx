@@ -65,9 +65,9 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 pt-safe pb-safe overflow-y-auto">
       <div
-        className={`w-full max-w-md rounded-2xl p-5 shadow-2xl space-y-4 border transition-colors ${
+        className={`w-full max-w-md rounded-2xl p-5 shadow-2xl space-y-4 border transition-colors max-h-[85dvh] overflow-y-auto ${
           isDark
             ? "bg-[#18181c] border-[#27272e] text-white"
             : "bg-white border-slate-200 text-slate-900"

@@ -1,15 +1,49 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
 
-/* Mobile map full-height layout fix */
+/* iOS Safe Area variables & dynamic viewport support */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+
+/* Mobile map full-height layout fix with iOS dynamic viewport (dvh) */
 html, body, #root {
   height: 100%;
+  height: 100dvh;
+  min-height: -webkit-fill-available;
   width: 100%;
   margin: 0;
   padding: 0;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+/* iOS Dynamic Island & Notch Safe Area utility classes */
+.pt-safe {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem) !important;
+}
+
+.pb-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem) !important;
+}
+
+.p-safe {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem) !important;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem) !important;
+  padding-left: calc(env(safe-area-inset-left, 0px) + 0.75rem) !important;
+  padding-right: calc(env(safe-area-inset-right, 0px) + 0.75rem) !important;
+}
+
+.top-safe {
+  top: calc(env(safe-area-inset-top, 0px) + 0.75rem) !important;
+}
+
+.bottom-safe {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem) !important;
 }
 
 /* Prevent Tailwind v4 preflight from shrinking Leaflet tile images */

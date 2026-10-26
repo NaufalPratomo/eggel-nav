@@ -111,7 +111,7 @@ export default function NavigationHUD({
   const isDark = theme === "dark";
 
   return (
-    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-3.5 z-[1000]">
+    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-3.5 pt-safe pb-safe z-[1000]">
       {/* Top Banner: Next Maneuver */}
       <div
         className={`pointer-events-auto rounded-2xl p-4 shadow-xl border max-w-lg mx-auto w-full transition-colors ${

@@ -583,7 +583,7 @@ export default function App() {
 
   return (
     <div
-      className={`relative w-screen h-screen overflow-hidden select-none transition-colors duration-300 ${
+      className={`fixed inset-0 w-full h-full h-[100dvh] overflow-hidden select-none transition-colors duration-300 ${
         theme === "dark" ? "bg-[#0f0f12] text-white" : "bg-slate-100 text-slate-800"
       }`}
     >
@@ -600,7 +600,7 @@ export default function App() {
 
       {/* Top Header Controls (Eggel Active athletic branding: matte carbon + electric lime) */}
       {!isNavigating && (
-        <div className="absolute top-0 inset-x-0 p-3 pt-safe z-[1000] pointer-events-none">
+        <div className="absolute top-0 inset-x-0 px-3 pb-3 pt-safe z-[1000] pointer-events-none">
           <div
             className={`pointer-events-auto max-w-lg mx-auto px-4 py-3 rounded-2xl shadow-md flex items-center justify-between gap-3 border transition-colors ${
               theme === "dark"
@@ -695,7 +695,11 @@ export default function App() {
       {!isNavigating && (
         <button
           onClick={handleCenterUser}
-          className={`absolute right-4 bottom-24 z-[1000] p-3 rounded-xl shadow-md active:scale-95 transition border ${
+          className={`absolute right-4 ${
+            destination
+              ? "bottom-[calc(env(safe-area-inset-bottom,0px)+17.5rem)]"
+              : "bottom-[calc(env(safe-area-inset-bottom,0px)+4.75rem)]"
+          } z-[1000] p-3 rounded-xl shadow-md active:scale-95 transition border ${
             theme === "dark"
               ? "bg-[#18181c] border-[#27272e] text-[#d2fc15] hover:bg-[#222228]"
               : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
@@ -708,7 +712,7 @@ export default function App() {
 
       {/* GPS Error Notification Banner */}
       {gpsErrorMsg && !isNavigating && (
-        <div className="absolute top-20 inset-x-4 z-[1000] max-w-md mx-auto bg-amber-500 text-white p-3 rounded-xl text-xs flex items-center gap-2.5 shadow-md border border-amber-600">
+        <div className="absolute top-[calc(env(safe-area-inset-top,0px)+4.75rem)] inset-x-4 z-[1000] max-w-md mx-auto bg-amber-500 text-white p-3 rounded-xl text-xs flex items-center gap-2.5 shadow-md border border-amber-600">
           <AlertTriangle className="w-5 h-5 shrink-0" />
           <span className="flex-1 font-medium">{gpsErrorMsg}</span>
         </div>
@@ -716,9 +720,9 @@ export default function App() {
 
       {/* Bottom Route Preview Card (when destination selected & not navigating) */}
       {!isNavigating && destination && (
-        <div className="absolute bottom-4 inset-x-4 z-[1000] max-w-lg mx-auto">
+        <div className="absolute bottom-0 inset-x-0 px-4 pb-safe z-[1000] max-w-lg mx-auto">
           <div
-            className={`rounded-2xl p-4 shadow-xl border transition-colors ${
+            className={`rounded-2xl p-4 shadow-xl border transition-colors max-h-[75dvh] overflow-y-auto ${
               theme === "dark"
                 ? "bg-[#18181c] text-white border-[#27272e]"
                 : "bg-white text-slate-900 border-slate-200"
@@ -899,12 +903,12 @@ export default function App() {
 
       {/* Map click hint when no destination is chosen */}
       {!isNavigating && !destination && (
-        <div className="absolute bottom-6 inset-x-4 z-[1000] max-w-sm mx-auto pointer-events-none">
+        <div className="absolute bottom-0 inset-x-0 px-4 pb-safe z-[1000] max-w-sm mx-auto pointer-events-none">
           <div
-            className={`border text-xs py-2 px-3 rounded-xl text-center shadow-md transition-colors ${
+            className={`border text-xs py-2.5 px-3 rounded-xl text-center shadow-md transition-colors ${
               theme === "dark"
-                ? "bg-[#18181c] border-[#27272e] text-zinc-300"
-                : "bg-white border-slate-200 text-slate-600"
+                ? "bg-[#18181c]/95 border-[#27272e] text-zinc-300"
+                : "bg-white/95 border-slate-200 text-slate-600"
             }`}
           >
             {t("mapTapHint", lang)}
