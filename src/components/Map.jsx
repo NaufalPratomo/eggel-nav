@@ -106,6 +106,13 @@ export default function Map({
       attributionControl: false,
     }).setView([initialLat, initialLng], 15);
 
+    // Standard OpenStreetMap Tile Layer (100% Free, NO API Key needed, No Watermarks)
+    const tileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors",
+    }).addTo(map);
+    tileLayerRef.current = tileLayer;
+
     // Add map click listener
     map.on("click", (e) => {
       if (onMapClickRef.current) {
@@ -130,23 +137,6 @@ export default function Map({
       routeLayerRef.current = null;
       initialCenteredRef.current = false;
     };
-  }, []);
-
-  // Initialize standard OpenStreetMap Tile Layer (100% Free, NO API Key needed, No Watermarks)
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
-
-    if (tileLayerRef.current) {
-      map.removeLayer(tileLayerRef.current);
-    }
-
-    const tileUrl = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-
-    tileLayerRef.current = L.tileLayer(tileUrl, {
-      maxZoom: 19,
-      attribution: "&copy; OpenStreetMap contributors",
-    }).addTo(map);
   }, []);
 
   // Update user marker
