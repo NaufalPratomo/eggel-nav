@@ -13,6 +13,7 @@ import {
 } from "./utils/geo";
 import { sendTelegramAlert, formatManeuverMessage } from "./utils/telegram";
 import { keepAlive } from "./utils/audioKeepAlive";
+import { t } from "./utils/i18n";
 import {
   Search,
   Settings as SettingsIcon,
@@ -32,6 +33,7 @@ const DEFAULT_SETTINGS = {
   chatId: "5694188432",
   alert1Dist: 150,
   alert2Dist: 40,
+  language: "id",
 };
 
 function getSavedSettings() {
@@ -51,6 +53,8 @@ export default function App() {
   const [settings, setSettings] = useState(getSavedSettings);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  const lang = settings.language || "id";
 
   // Theme state ('light' | 'dark')
   const [theme, setTheme] = useState(() => {
@@ -156,7 +160,8 @@ export default function App() {
       setRoute(routeData);
     } catch (err) {
       console.error("Fetch route failed:", err);
-      setRouteError(err.message || "Gagal mendapatkan rute OSRM. Coba tujuan lain.");
+      const isEn = settingsRef.current?.language === "en";
+      setRouteError(err.message || (isEn ? "Failed to get OSRM route. Try another destination." : "Gagal mendapatkan rute OSRM. Coba tujuan lain."));
       setRoute(null);
     } finally {
       setIsRouting(false);
@@ -168,7 +173,9 @@ export default function App() {
     setIsNavigating(false);
     isNavigatingRef.current = false;
     keepAlive.stop();
-    sendTelegramAlert(settingsRef.current.botToken, settingsRef.current.chatId, "⏹️ NAVIGASI DIAKHIRI");
+    const isEn = settingsRef.current?.language === "en";
+    const stopMsg = isEn ? "⏹️ NAVIGATION ENDED" : "⏹️ NAVIGASI DIAKHIRI";
+    sendTelegramAlert(settingsRef.current.botToken, settingsRef.current.chatId, stopMsg);
     setLastAlertSent(null);
   }, []);
 
@@ -182,12 +189,15 @@ export default function App() {
 
       const steps = activeRoute.steps;
       const idx = currentStepIndexRef.current;
+      const isEn = activeSettings.language === "en";
 
       // Final destination reached
       if (idx >= steps.length) {
-        const arriveMsg = `🏁 TIBA DI TUJUAN\nAnda telah sampai di ${activeDest?.name || "Tujuan"}!`;
+        const arriveMsg = isEn
+          ? `🏁 ARRIVED AT DESTINATION\nYou have reached ${activeDest?.name || "Destination"}!`
+          : `🏁 TIBA DI TUJUAN\nAnda telah sampai di ${activeDest?.name || "Tujuan"}!`;
         sendTelegramAlert(activeSettings.botToken, activeSettings.chatId, arriveMsg);
-        setLastAlertSent("Tiba di Tujuan");
+        setLastAlertSent(t("arrived", activeSettings.language));
         handleStopNavigation();
         return;
       }
@@ -243,9 +253,11 @@ export default function App() {
       if (reachedManeuver || movingAwayTowardsNext || alreadyAtNext) {
         const nextIdx = idx + 1;
         if (nextIdx >= steps.length) {
-          const arriveMsg = `🏁 TIBA DI TUJUAN\nAnda telah sampai di ${activeDest?.name || "Tujuan"}!`;
+          const arriveMsg = isEn
+            ? `🏁 ARRIVED AT DESTINATION\nYou have reached ${activeDest?.name || "Destination"}!`
+            : `🏁 TIBA DI TUJUAN\nAnda telah sampai di ${activeDest?.name || "Tujuan"}!`;
           sendTelegramAlert(activeSettings.botToken, activeSettings.chatId, arriveMsg);
-          setLastAlertSent("Tiba di Tujuan");
+          setLastAlertSent(t("arrived", activeSettings.language));
           handleStopNavigation();
           return;
         }
@@ -274,7 +286,8 @@ export default function App() {
             currentStep.type,
             currentStep.modifier,
             currentStep.name,
-            true
+            true,
+            activeSettings.language || "id"
           );
           sendTelegramAlert(activeSettings.botToken, activeSettings.chatId, alertMsg);
           tracker.alert2Sent = true;
@@ -291,7 +304,8 @@ export default function App() {
             currentStep.type,
             currentStep.modifier,
             currentStep.name,
-            false
+            false,
+            activeSettings.language || "id"
           );
           sendTelegramAlert(activeSettings.botToken, activeSettings.chatId, alertMsg);
           tracker.alert1Sent = true;
@@ -332,12 +346,15 @@ export default function App() {
                 lastAlertTime: Date.now(),
                 minDist: Infinity,
               };
+              const rerouteMsg = isEn
+                ? "🔄 ROUTE RECALCULATED\nFollowing new route..."
+                : "🔄 RUTE DIHITUNG ULANG\nMengikuti rute baru...";
               sendTelegramAlert(
                 activeSettings.botToken,
                 activeSettings.chatId,
-                "🔄 RUTE DIHITUNG ULANG\nMengikuti rute baru..."
+                rerouteMsg
               );
-              setLastAlertSent("Rute Dihitung Ulang");
+              setLastAlertSent(t("rerouted", activeSettings.language));
             })
             .catch((e) => {
               console.warn("Reroute failed:", e);
@@ -438,7 +455,7 @@ export default function App() {
   // Destination pick handlers
   const handleSelectDestination = (place) => {
     if (isNavigating) {
-      if (!window.confirm("Ganti tujuan dan akhiri navigasi saat ini?")) {
+      if (!window.confirm(t("confirmChangeDest", lang))) {
         return;
       }
       handleStopNavigation();
@@ -453,7 +470,7 @@ export default function App() {
   const handleMapClick = (latlng) => {
     if (isNavigating) return;
     const place = {
-      name: `Titik Pilihan (${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)})`,
+      name: `${t("selectedPoint", lang)} (${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)})`,
       lat: latlng.lat,
       lng: latlng.lng,
     };
@@ -511,9 +528,12 @@ export default function App() {
     await keepAlive.start();
 
     // Send initial Telegram notification to confirm connection with smartwatch
-    const startMsg = `🚀 NAVIGASI DIMULAI\nTujuan: ${destination?.name || "Tujuan"}\nJarak: ${formatDistance(route.distance)} (${formatDuration(route.duration)})`;
+    const isEn = lang === "en";
+    const startMsg = isEn
+      ? `🚀 NAVIGATION STARTED\nDestination: ${destination?.name || "Destination"}\nDistance: ${formatDistance(route.distance)} (${formatDuration(route.duration, "en")})`
+      : `🚀 NAVIGASI DIMULAI\nTujuan: ${destination?.name || "Tujuan"}\nJarak: ${formatDistance(route.distance)} (${formatDuration(route.duration, "id")})`;
     sendTelegramAlert(settings.botToken, settings.chatId, startMsg);
-    setLastAlertSent("Navigasi Dimulai");
+    setLastAlertSent(t("navStarted", lang));
   };
 
   // Re-center map on user
@@ -588,23 +608,23 @@ export default function App() {
                 <Compass className="w-5 h-5 animate-[spin_12s_linear_infinite]" />
               </div>
               <div>
-                <h1 className="text-sm font-black tracking-wide leading-none">Eggel Nav</h1>
+                <h1 className="text-sm font-black tracking-wide leading-none">{t("appName", lang)}</h1>
                 <div className="flex items-center gap-1.5 text-[10px] mt-1">
                   {gpsStatus === "ready" ? (
                     <>
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="text-emerald-100 font-semibold">GPS Terhubung</span>
+                      <span className="text-emerald-100 font-semibold">{t("gpsReady", lang)}</span>
                     </>
                   ) : gpsStatus === "locating" ? (
                     <>
                       <span className="w-2 h-2 rounded-full bg-amber-300 animate-pulse" />
-                      <span className="text-amber-100 font-medium">Mencari GPS...</span>
+                      <span className="text-amber-100 font-medium">{t("gpsLocating", lang)}</span>
                     </>
                   ) : (
                     <>
                       <span className="w-2 h-2 rounded-full bg-rose-400" />
                       <span className="text-rose-100 font-medium truncate max-w-[90px]">
-                        GPS Error
+                        {t("gpsError", lang)}
                       </span>
                     </>
                   )}
@@ -619,14 +639,14 @@ export default function App() {
                 className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-2xl backdrop-blur-md border border-white/25 text-xs font-bold transition active:scale-95 shadow-sm"
               >
                 <Search className="w-3.5 h-3.5" />
-                <span>Cari</span>
+                <span>{t("searchBtn", lang)}</span>
               </button>
 
               <button
                 onClick={toggleTheme}
                 className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-2xl backdrop-blur-md border border-white/25 transition active:scale-95 shadow-sm"
                 aria-label="Toggle Theme"
-                title={theme === "dark" ? "Mode Terang" : "Mode Gelap"}
+                title={theme === "dark" ? t("lightMode", lang) : t("darkMode", lang)}
               >
                 {theme === "dark" ? (
                   <Sun className="w-4 h-4 text-amber-300" />
@@ -638,7 +658,7 @@ export default function App() {
               <button
                 onClick={() => setIsSettingsOpen(true)}
                 className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-2xl backdrop-blur-md border border-white/25 transition active:scale-95 shadow-sm"
-                aria-label="Pengaturan"
+                aria-label={t("settingsTitle", lang)}
               >
                 <SettingsIcon className="w-4 h-4 text-white" />
               </button>
@@ -656,7 +676,7 @@ export default function App() {
               ? "bg-slate-900/90 backdrop-blur-md border-slate-700/60 text-blue-400 hover:bg-slate-800"
               : "bg-white/95 backdrop-blur-md border-slate-200/80 text-indigo-600 hover:bg-slate-50"
           }`}
-          aria-label="Pusatkan Lokasi Saya"
+          aria-label={t("recenterMap", lang)}
         >
           <Crosshair className="w-5 h-5" />
         </button>
@@ -691,7 +711,7 @@ export default function App() {
                   theme === "dark" ? "text-indigo-400" : "text-indigo-600"
                 }`}
               >
-                Rute Perjalanan
+                {t("routeTrip", lang)}
               </span>
               <button
                 onClick={handleClearDestination}
@@ -720,9 +740,9 @@ export default function App() {
                   <div className="w-3 h-3 rounded-full bg-blue-600 ring-4 ring-blue-300/40 animate-pulse" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Dari</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">{t("fromLabel", lang)}</span>
                   <p className="text-xs font-semibold truncate text-slate-700 dark:text-slate-200">
-                    Lokasi Saya Saat Ini
+                    {t("myLocation", lang)}
                   </p>
                 </div>
               </div>
@@ -740,7 +760,7 @@ export default function App() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block">
-                    Tujuan
+                    {t("toLabel", lang)}
                   </span>
                   <p className="text-xs font-bold truncate text-slate-900 dark:text-white">
                     {destination.name}
@@ -753,7 +773,7 @@ export default function App() {
             {isRouting ? (
               <div className="flex items-center justify-center gap-2 py-3 text-xs text-slate-400 font-medium">
                 <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
-                <span>Menghitung rute tercepat...</span>
+                <span>{t("calculatingRoute", lang)}</span>
               </div>
             ) : routeError ? (
               <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-2.5 rounded-xl text-xs text-rose-600 dark:text-rose-300 font-medium">
@@ -768,7 +788,7 @@ export default function App() {
                       : "bg-slate-50 border-slate-200/60"
                   }`}
                 >
-                  <span className="text-[10px] text-slate-400 uppercase font-bold">Total Jarak</span>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold">{t("totalDistance", lang)}</span>
                   <p className="text-lg font-black text-slate-900 dark:text-white mt-0.5">
                     {formatDistance(route.distance)}
                   </p>
@@ -785,14 +805,14 @@ export default function App() {
                       theme === "dark" ? "text-indigo-400" : "text-indigo-600"
                     }`}
                   >
-                    Estimasi Waktu
+                    {t("estimatedTime", lang)}
                   </span>
                   <p
                     className={`text-lg font-black mt-0.5 ${
                       theme === "dark" ? "text-indigo-400" : "text-indigo-600"
                     }`}
                   >
-                    {formatDuration(route.duration)}
+                    {formatDuration(route.duration, lang)}
                   </p>
                 </div>
               </div>
@@ -808,7 +828,7 @@ export default function App() {
                     : "bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-200"
                 }`}
               >
-                Batal
+                {t("cancelBtn", lang)}
               </button>
 
               <button
@@ -817,7 +837,7 @@ export default function App() {
                 className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 text-white text-sm font-bold rounded-2xl shadow-lg shadow-indigo-500/25 transition active:scale-95"
               >
                 <Navigation className="w-4 h-4" />
-                <span>Mulai Navigasi</span>
+                <span>{t("startNavBtn", lang)}</span>
               </button>
             </div>
           </div>
@@ -834,7 +854,7 @@ export default function App() {
                 : "bg-white/95 border-slate-200 text-slate-600"
             }`}
           >
-            Ketuk di mana saja pada peta atau klik <b>Cari</b>
+            {t("mapTapHint", lang)}
           </div>
         </div>
       )}
@@ -850,6 +870,7 @@ export default function App() {
           lastAlertSent={lastAlertSent}
           onStopNavigation={handleStopNavigation}
           theme={theme}
+          lang={lang}
         />
       )}
 
@@ -858,6 +879,7 @@ export default function App() {
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
         onSelectDestination={handleSelectDestination}
+        lang={lang}
       />
 
       {/* Settings Modal */}

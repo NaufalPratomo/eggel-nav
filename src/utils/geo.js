@@ -25,15 +25,16 @@ export const formatDistance = (meters) => {
   return `${(meters / 1000).toFixed(1)} km`;
 };
 
-export const formatDuration = (seconds) => {
-  if (seconds == null || isNaN(seconds)) return "0 mnt";
+export const formatDuration = (seconds, lang = "id") => {
+  if (seconds == null || isNaN(seconds)) return lang === "en" ? "0 min" : "0 mnt";
   const minutes = Math.round(seconds / 60);
+  const isEn = lang === "en";
   if (minutes < 60) {
-    return `${minutes} mnt`;
+    return `${minutes} ${isEn ? "min" : "mnt"}`;
   }
   const hours = Math.floor(minutes / 60);
   const remainingMins = minutes % 60;
-  return `${hours} jam ${remainingMins} mnt`;
+  return `${hours} ${isEn ? "hr" : "jam"} ${remainingMins} ${isEn ? "min" : "mnt"}`;
 };
 
 export const calculateBearing = (lat1, lon1, lat2, lon2) => {

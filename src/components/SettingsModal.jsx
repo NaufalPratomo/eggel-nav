@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Settings, X, Bell } from "lucide-react";
+import { Settings, X, Bell, Globe } from "lucide-react";
 import { sendTelegramAlert } from "../utils/telegram";
+import { t } from "../utils/i18n";
 
 function SettingsForm({ settings, onClose, onSaveSettings }) {
   const [botToken, setBotToken] = useState(
@@ -9,23 +10,28 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
   const [chatId, setChatId] = useState(settings?.chatId || "5694188432");
   const [alert1Dist, setAlert1Dist] = useState(settings?.alert1Dist || 150);
   const [alert2Dist, setAlert2Dist] = useState(settings?.alert2Dist || 40);
+  const [language, setLanguage] = useState(settings?.language || "id");
   const [testStatus, setTestStatus] = useState(null);
   const [testing, setTesting] = useState(false);
 
   const handleTestVibration = async () => {
     if (!botToken || !chatId) {
-      setTestStatus({ ok: false, msg: "Token & Chat ID wajib diisi" });
+      setTestStatus({ ok: false, msg: t("tokenChatRequired", language) });
       return;
     }
 
     setTesting(true);
     setTestStatus(null);
 
-    const now = new Date().toLocaleTimeString("id-ID", {
+    const now = new Date().toLocaleTimeString(language === "en" ? "en-US" : "id-ID", {
       hour: "2-digit",
       minute: "2-digit",
     });
-    const message = `[TEST] ⬅️ BELOK KIRI (100m)\nJl. Margonda Raya\n(Tes Getar Jam: ${now})`;
+
+    const isEn = language === "en";
+    const message = isEn
+      ? `[TEST] ⬅️ TURN LEFT (100m)\nMain Street Avenue\n(Watch Vibration Test: ${now})`
+      : `[TEST] ⬅️ BELOK KIRI (100m)\nJl. Margonda Raya\n(Tes Getar Jam: ${now})`;
 
     const result = await sendTelegramAlert(botToken, chatId, message);
     setTesting(false);
@@ -33,12 +39,12 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
     if (result.success) {
       setTestStatus({
         ok: true,
-        msg: "Berhasil dikirim! Cek jam tangan Eggel Anda.",
+        msg: t("testSuccess", language),
       });
     } else {
       setTestStatus({
         ok: false,
-        msg: `Gagal: ${result.error || "Periksa token bot"}`,
+        msg: `${t("testFail", language)} ${result.error || "Check bot token"}`,
       });
     }
   };
@@ -51,22 +57,23 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
       chatId: (chatId || "").trim(),
       alert1Dist: a1,
       alert2Dist: a2,
+      language: language,
     });
     onClose();
   };
 
   return (
     <div className="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 text-white w-full max-w-md rounded-2xl p-5 shadow-2xl space-y-4">
+      <div className="bg-slate-900 border border-slate-800 text-white w-full max-w-md rounded-3xl p-5 shadow-2xl space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
           <div className="flex items-center gap-2">
-            <Settings className="w-5 h-5 text-blue-400" />
-            <h2 className="text-lg font-bold">Pengaturan Smartwatch</h2>
+            <Settings className="w-5 h-5 text-indigo-400" />
+            <h2 className="text-base font-bold">{t("settingsTitle", language)}</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            className="p-1 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
           >
             <X className="w-5 h-5" />
           </button>
@@ -74,36 +81,70 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
 
         {/* Form Body */}
         <div className="space-y-3.5 text-sm">
+          {/* Language Selector */}
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5 text-indigo-400" />
+              {t("languageLabel", language)}
+            </label>
+            <div className="grid grid-cols-2 gap-2 bg-slate-800/60 p-1.5 rounded-2xl border border-slate-700/60">
+              <button
+                type="button"
+                onClick={() => setLanguage("id")}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+                  language === "id"
+                    ? "bg-indigo-600 text-white shadow-md"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <span>🇮🇩</span>
+                <span>Bahasa Indonesia</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setLanguage("en")}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+                  language === "en"
+                    ? "bg-indigo-600 text-white shadow-md"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <span>🇬🇧</span>
+                <span>English</span>
+              </button>
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-              Telegram Bot Token
+              {t("botTokenLabel", language)}
             </label>
             <input
               type="text"
               value={botToken}
               onChange={(e) => setBotToken(e.target.value)}
-              placeholder="Contoh: 8863619482:AAH..."
-              className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono text-xs"
+              placeholder="e.g.: 8863619482:AAH..."
+              className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono text-xs"
             />
           </div>
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-              Telegram Chat ID
+              {t("chatIdLabel", language)}
             </label>
             <input
               type="text"
               value={chatId}
               onChange={(e) => setChatId(e.target.value)}
-              placeholder="Contoh: 5694188432"
-              className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono text-xs"
+              placeholder="e.g.: 5694188432"
+              className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono text-xs"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3 pt-1">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-                Peringatan 1 (Meter)
+                {t("alert1Label", language)}
               </label>
               <input
                 type="number"
@@ -111,13 +152,13 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
                 onChange={(e) => setAlert1Dist(e.target.value)}
                 min="50"
                 max="500"
-                className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500 font-semibold"
+                className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500 font-semibold"
               />
-              <span className="text-[11px] text-slate-500">Peringatan awal</span>
+              <span className="text-[11px] text-slate-500">{t("alert1Desc", language)}</span>
             </div>
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-                Peringatan 2 (Meter)
+                {t("alert2Label", language)}
               </label>
               <input
                 type="number"
@@ -125,9 +166,9 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
                 onChange={(e) => setAlert2Dist(e.target.value)}
                 min="15"
                 max="100"
-                className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500 font-semibold"
+                className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500 font-semibold"
               />
-              <span className="text-[11px] text-slate-500">Tepat saat belok</span>
+              <span className="text-[11px] text-slate-500">{t("alert2Desc", language)}</span>
             </div>
           </div>
 
@@ -136,10 +177,10 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
             <button
               onClick={handleTestVibration}
               disabled={testing}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-blue-400 font-semibold rounded-xl transition active:scale-95 disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-400 font-semibold rounded-2xl transition active:scale-95 disabled:opacity-50"
             >
               <Bell className="w-4 h-4" />
-              {testing ? "Mengirim Tes..." : "Tes Getar Jam Sekarang"}
+              {testing ? t("testingVibration", language) : t("testVibrationBtn", language)}
             </button>
 
             {testStatus && (
@@ -160,13 +201,13 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
             onClick={onClose}
             className="px-4 py-2 rounded-xl text-slate-400 hover:text-white transition font-medium text-sm"
           >
-            Batal
+            {t("cancelBtn", language)}
           </button>
           <button
             onClick={handleSave}
-            className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-md transition active:scale-95"
+            className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm shadow-md transition active:scale-95"
           >
-            Simpan Pengaturan
+            {t("saveSettingsBtn", language)}
           </button>
         </div>
       </div>

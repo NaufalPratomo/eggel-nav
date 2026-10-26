@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Search, MapPin, X, Loader2 } from "lucide-react";
 import { searchPlaces } from "../utils/osrm";
+import { t } from "../utils/i18n";
 
 export default function SearchModal({
   isOpen,
   onClose,
   onSelectDestination,
+  lang = "id",
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -53,16 +55,16 @@ export default function SearchModal({
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Cari nama tempat, jalan, atau kota..."
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+              placeholder={t("searchPlaceholder", lang)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3 py-2.5 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-sm transition shrink-0 active:scale-95 disabled:opacity-50"
+            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-sm transition shrink-0 active:scale-95 disabled:opacity-50"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Cari"}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : t("searchBtn", lang)}
           </button>
           <button
             type="button"
@@ -82,7 +84,7 @@ export default function SearchModal({
                 onClick={() => handleSelect(item)}
                 className="w-full text-left p-2.5 hover:bg-slate-800/70 rounded-xl transition flex items-start gap-3 group"
               >
-                <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition mt-0.5">
+                <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition mt-0.5">
                   <MapPin className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -97,11 +99,11 @@ export default function SearchModal({
             ))
           ) : query && !loading ? (
             <p className="text-center text-xs text-slate-400 py-6">
-              Tidak ada tempat ditemukan. Coba ketik lebih spesifik.
+              {t("noPlacesFound", lang)}
             </p>
           ) : (
             <div className="text-center py-6 text-xs text-slate-400">
-              <p>Ketik tujuan Anda di atas atau langsung <b>ketuk peta</b> untuk memilih titik tujuan.</p>
+              <p>{t("searchHint", lang)}</p>
             </div>
           )}
         </div>

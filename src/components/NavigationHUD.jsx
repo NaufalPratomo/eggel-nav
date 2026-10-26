@@ -14,13 +14,14 @@ import {
   Timer,
 } from "lucide-react";
 import { formatDistance, formatDuration } from "../utils/geo";
+import { t } from "../utils/i18n";
 
 const getManeuverIcon = (modifier, type, theme = "light") => {
   const mod = (modifier || "").toLowerCase();
-  const t = (type || "").toLowerCase();
+  const tType = (type || "").toLowerCase();
   const primaryColor = theme === "dark" ? "text-blue-400" : "text-indigo-600";
 
-  if (mod.includes("uturn") || mod.includes("u-turn") || t.includes("uturn")) {
+  if (mod.includes("uturn") || mod.includes("u-turn") || tType.includes("uturn")) {
     return <RotateCcw className="w-9 h-9 text-amber-500" />;
   }
   if (mod.includes("sharp left") || mod.includes("left")) {
@@ -37,30 +38,42 @@ const getManeuverIcon = (modifier, type, theme = "light") => {
       <ArrowRight className={`w-9 h-9 ${primaryColor}`} />
     );
   }
-  if (t.includes("roundabout") || t.includes("rotary")) {
+  if (tType.includes("roundabout") || tType.includes("rotary")) {
     return <RotateCcw className={`w-9 h-9 ${primaryColor}`} />;
   }
-  if (t.includes("arrive") || t.includes("destination")) {
+  if (tType.includes("arrive") || tType.includes("destination")) {
     return <CheckCircle2 className="w-9 h-9 text-emerald-500" />;
   }
   return <ArrowUp className={`w-9 h-9 ${primaryColor}`} />;
 };
 
-const formatManeuverBadge = (modifier, type) => {
+const formatManeuverBadge = (modifier, type, lang = "id") => {
   const mod = (modifier || "").toLowerCase();
-  const t = (type || "").toLowerCase();
+  const tType = (type || "").toLowerCase();
+  const isEn = lang === "en";
 
-  if (mod.includes("uturn") || mod.includes("u-turn") || t.includes("uturn")) return "Putar Balik";
-  if (mod.includes("sharp left")) return "Belok Kiri Tajam";
-  if (mod.includes("slight left")) return "Serong Kiri";
-  if (mod.includes("left")) return "Belok Kiri";
-  if (mod.includes("sharp right")) return "Belok Kanan Tajam";
-  if (mod.includes("slight right")) return "Serong Kanan";
-  if (mod.includes("right")) return "Belok Kanan";
-  if (t.includes("arrive") || t.includes("destination")) return "Tujuan";
-  if (t.includes("roundabout") || t.includes("rotary")) return "Bundaran";
-  if (t.includes("fork")) return mod.includes("left") ? "Ambil Jalur Kiri" : "Ambil Jalur Kanan";
-  return "Lurus";
+  if (mod.includes("uturn") || mod.includes("u-turn") || tType.includes("uturn")) {
+    return isEn ? "U-Turn" : "Putar Balik";
+  }
+  if (mod.includes("sharp left")) return isEn ? "Sharp Left" : "Belok Kiri Tajam";
+  if (mod.includes("slight left")) return isEn ? "Slight Left" : "Serong Kiri";
+  if (mod.includes("left")) return isEn ? "Turn Left" : "Belok Kiri";
+  if (mod.includes("sharp right")) return isEn ? "Sharp Right" : "Belok Kanan Tajam";
+  if (mod.includes("slight right")) return isEn ? "Slight Right" : "Serong Kanan";
+  if (mod.includes("right")) return isEn ? "Turn Right" : "Belok Kanan";
+  if (tType.includes("arrive") || tType.includes("destination")) {
+    return isEn ? "Destination" : "Tujuan";
+  }
+  if (tType.includes("roundabout") || tType.includes("rotary")) {
+    return isEn ? "Roundabout" : "Bundaran";
+  }
+  if (tType.includes("fork")) {
+    if (isEn) {
+      return mod.includes("left") ? "Keep Left" : "Keep Right";
+    }
+    return mod.includes("left") ? "Ambil Jalur Kiri" : "Ambil Jalur Kanan";
+  }
+  return isEn ? "Straight" : "Lurus";
 };
 
 export default function NavigationHUD({
@@ -72,6 +85,7 @@ export default function NavigationHUD({
   lastAlertSent,
   onStopNavigation,
   theme = "light",
+  lang = "id",
 }) {
   const speedKmh = currentSpeed != null && currentSpeed > 0 ? Math.round(currentSpeed * 3.6) : 0;
 
@@ -85,11 +99,14 @@ export default function NavigationHUD({
   }, []);
 
   const arrivalTime = useMemo(() => {
-    return new Date(clock + (totalRemainingDuration || 0) * 1000).toLocaleTimeString("id-ID", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }, [clock, totalRemainingDuration]);
+    return new Date(clock + (totalRemainingDuration || 0) * 1000).toLocaleTimeString(
+      lang === "en" ? "en-US" : "id-ID",
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    );
+  }, [clock, totalRemainingDuration, lang]);
 
   const isDark = theme === "dark";
 
@@ -129,7 +146,7 @@ export default function NavigationHUD({
                     : "bg-indigo-50 text-indigo-700 border-indigo-200"
                 }`}
               >
-                {formatManeuverBadge(currentStep?.modifier, currentStep?.type)}
+                {formatManeuverBadge(currentStep?.modifier, currentStep?.type, lang)}
               </span>
             </div>
             <p
@@ -137,7 +154,7 @@ export default function NavigationHUD({
                 isDark ? "text-slate-300" : "text-slate-600"
               }`}
             >
-              {currentStep?.name || "Jalan Berikutnya"}
+              {currentStep?.name || (lang === "en" ? "Next Street" : "Jalan Berikutnya")}
             </p>
           </div>
         </div>
@@ -151,7 +168,7 @@ export default function NavigationHUD({
           >
             <span className="flex items-center gap-1.5 font-medium">
               <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-500" />
-              Notif terkirim ke Eggel:
+              {t("alertSentBadge", lang)}
             </span>
             <span
               className={`font-mono truncate max-w-[200px] ${
@@ -185,14 +202,14 @@ export default function NavigationHUD({
               }`}
             >
               <Timer className="w-3.5 h-3.5 text-indigo-500" />
-              Sisa Waktu
+              {t("remainingTime", lang)}
             </span>
             <div
               className={`text-xl font-black mt-1 ${
                 isDark ? "text-indigo-400" : "text-indigo-600"
               }`}
             >
-              {formatDuration(totalRemainingDuration)}
+              {formatDuration(totalRemainingDuration, lang)}
             </div>
             <span className="text-[10px] text-slate-400 font-medium">
               {speedKmh} km/h
@@ -207,7 +224,7 @@ export default function NavigationHUD({
               }`}
             >
               <NavIcon className="w-3.5 h-3.5 text-blue-500" />
-              Sisa Jarak
+              {t("remainingDistance", lang)}
             </span>
             <div
               className={`text-xl font-black mt-1 ${
@@ -216,7 +233,7 @@ export default function NavigationHUD({
             >
               {formatDistance(totalRemainingDistance)}
             </div>
-            <span className="text-[10px] text-slate-400 font-medium">Jarak Total</span>
+            <span className="text-[10px] text-slate-400 font-medium">{t("totalLabel", lang)}</span>
           </div>
 
           {/* Column 3: Estimated Arrival */}
@@ -227,7 +244,7 @@ export default function NavigationHUD({
               }`}
             >
               <Clock className="w-3.5 h-3.5 text-emerald-500" />
-              Estimasi Tiba
+              {t("estimatedArrival", lang)}
             </span>
             <div
               className={`text-xl font-black mt-1 ${
@@ -236,7 +253,7 @@ export default function NavigationHUD({
             >
               {arrivalTime}
             </div>
-            <span className="text-[10px] text-slate-400 font-medium">WIB</span>
+            <span className="text-[10px] text-slate-400 font-medium">{t("timeZone", lang)}</span>
           </div>
         </div>
 
@@ -245,7 +262,7 @@ export default function NavigationHUD({
           <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
             <span className={isDark ? "text-slate-400" : "text-slate-600"}>
-              Audio Keep-Alive Aktif
+              {t("audioActive", lang)}
             </span>
           </div>
 
@@ -254,7 +271,7 @@ export default function NavigationHUD({
             className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-2xl shadow-md transition active:scale-95"
           >
             <X className="w-4 h-4" />
-            Akhiri
+            {t("endNavBtn", lang)}
           </button>
         </div>
       </div>

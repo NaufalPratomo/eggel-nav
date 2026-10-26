@@ -34,9 +34,17 @@ export const sendTelegramAlert = async (token, chatId, text) => {
  * [120m] ⬅️ BELOK KIRI
  * Jl. Margonda Raya
  */
-export const formatManeuverMessage = (distanceMeters, maneuverType, modifier, streetName, isFinal = false) => {
+export const formatManeuverMessage = (
+  distanceMeters,
+  maneuverType,
+  modifier,
+  streetName,
+  isFinal = false,
+  lang = "id"
+) => {
+  const isEn = lang === "en";
   let icon = "⬆️";
-  let actionText = "LURUS";
+  let actionText = isEn ? "GO STRAIGHT" : "LURUS";
 
   const mod = (modifier || "").toLowerCase();
   const type = (maneuverType || "").toLowerCase();
@@ -44,41 +52,51 @@ export const formatManeuverMessage = (distanceMeters, maneuverType, modifier, st
   // 1. Check U-turn first (handles 'uturn' and 'u-turn')
   if (mod.includes("uturn") || mod.includes("u-turn") || type.includes("uturn")) {
     icon = "🔄";
-    actionText = "PUTAR BALIK";
+    actionText = isEn ? "U-TURN" : "PUTAR BALIK";
   } else if (mod.includes("sharp left")) {
     icon = "⬅️";
-    actionText = "BELOK KIRI TAJAM";
+    actionText = isEn ? "SHARP LEFT" : "BELOK KIRI TAJAM";
   } else if (mod.includes("slight left")) {
     icon = "↖️";
-    actionText = "SERONG KIRI";
+    actionText = isEn ? "SLIGHT LEFT" : "SERONG KIRI";
   } else if (mod.includes("left")) {
     icon = "⬅️";
-    actionText = "BELOK KIRI";
+    actionText = isEn ? "TURN LEFT" : "BELOK KIRI";
   } else if (mod.includes("sharp right")) {
     icon = "➡️";
-    actionText = "BELOK KANAN TAJAM";
+    actionText = isEn ? "SHARP RIGHT" : "BELOK KANAN TAJAM";
   } else if (mod.includes("slight right")) {
     icon = "↗️";
-    actionText = "SERONG KANAN";
+    actionText = isEn ? "SLIGHT RIGHT" : "SERONG KANAN";
   } else if (mod.includes("right")) {
     icon = "➡️";
-    actionText = "BELOK KANAN";
+    actionText = isEn ? "TURN RIGHT" : "BELOK KANAN";
   } else if (type.includes("roundabout") || type.includes("rotary")) {
     icon = "🔄";
-    actionText = "BUNDARAN";
+    actionText = isEn ? "ROUNDABOUT" : "BUNDARAN";
   } else if (type.includes("arrive") || type.includes("destination")) {
     icon = "🏁";
-    actionText = "TIBA DI TUJUAN";
+    actionText = isEn ? "ARRIVED AT DESTINATION" : "TIBA DI TUJUAN";
   } else if (type.includes("fork")) {
     icon = mod.includes("left") ? "↖️" : "↗️";
-    actionText = mod.includes("left") ? "AMBIL JALUR KIRI" : "AMBIL JALUR KANAN";
+    if (isEn) {
+      actionText = mod.includes("left") ? "KEEP LEFT" : "KEEP RIGHT";
+    } else {
+      actionText = mod.includes("left") ? "AMBIL JALUR KIRI" : "AMBIL JALUR KANAN";
+    }
   }
 
-  const distText = distanceMeters < 1000 ? `${Math.round(distanceMeters)}m` : `${(distanceMeters / 1000).toFixed(1)}km`;
-  const cleanStreet = streetName && streetName.trim().length > 0 ? streetName.trim() : "Jalan Berikutnya";
+  const distText =
+    distanceMeters < 1000
+      ? `${Math.round(distanceMeters)}m`
+      : `${(distanceMeters / 1000).toFixed(1)}km`;
+  const defaultStreet = isEn ? "Next Street" : "Jalan Berikutnya";
+  const cleanStreet =
+    streetName && streetName.trim().length > 0 ? streetName.trim() : defaultStreet;
 
   if (isFinal) {
-    return `[${distText}] ${icon} ${actionText} SEKARANG\n${cleanStreet}`;
+    const finalSuffix = isEn ? " NOW" : " SEKARANG";
+    return `[${distText}] ${icon} ${actionText}${finalSuffix}\n${cleanStreet}`;
   }
 
   return `[${distText}] ${icon} ${actionText}\n${cleanStreet}`;
