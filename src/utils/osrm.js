@@ -1,4 +1,47 @@
 // OSRM Routing & Geocoding Service
+import { calculateHaversineDistance } from "./geo";
+
+/**
+ * Generate intelligent query candidates for Indonesian places,
+ * housing clusters, and compound street/village names
+ */
+const generateQueryCandidates = (query) => {
+  const raw = query.trim();
+  const clean = raw.replace(/^(perumahan|komplek|kompleks|cluster|residence|apartemen)\s+/i, "");
+  const list = [raw];
+  if (clean && clean !== raw) list.push(clean);
+
+  // If single word ending in 'land' (e.g. patraland -> patra land)
+  if (!raw.includes(" ") && raw.toLowerCase().endsWith("land") && raw.length > 5) {
+    list.push(raw.slice(0, -4) + " " + raw.slice(-4));
+  }
+
+  // Handle multi-word queries: progressive token stripping and merging
+  const words = clean.split(/\s+/);
+  if (words.length > 1) {
+    // Drop first word (usually developer/housing cluster name like 'patraland')
+    const withoutFirst = words.slice(1).join(" ");
+    if (withoutFirst.length >= 3) list.push(withoutFirst);
+
+    // If 3+ words (e.g. patraland tasik madu malang)
+    if (words.length >= 3) {
+      list.push(words.slice(-2).join(" "));
+      list.push(words.slice(0, -1).join(" "));
+    }
+
+    // Merged words (e.g. tasik madu -> tasikmadu)
+    const merged = clean.replace(/(\w{3,8})\s+(\w{3,8})/g, "$1$2");
+    if (merged !== clean && !list.includes(merged)) {
+      list.push(merged);
+      const mWords = merged.split(/\s+/);
+      if (mWords.length > 1) {
+        list.push(mWords.slice(1).join(" "));
+      }
+    }
+  }
+
+  return [...new Set(list)];
+};
 
 /**
  * Search locations using OpenStreetMap Nominatim and Photon with Indonesian fallback
@@ -6,21 +49,11 @@
 export const searchPlaces = async (query, userPosition = null) => {
   if (!query || query.trim().length < 2) return [];
 
-  const rawQuery = query.trim();
-  const cleanQuery = rawQuery.replace(/^(perumahan|komplek|kompleks|cluster|residence)\s+/i, "").trim();
+  const candidates = generateQueryCandidates(query);
+  const collectedPlaces = [];
+  const seenIds = new Set();
 
-  // Try multiple variations if needed (e.g. "patraland" -> "patra land")
-  const queryCandidates = [rawQuery];
-  if (cleanQuery && cleanQuery !== rawQuery) {
-    queryCandidates.push(cleanQuery);
-  }
-  // If single long word with 'land' suffix, also add space variant
-  if (!rawQuery.includes(" ") && rawQuery.toLowerCase().endsWith("land")) {
-    const spaced = rawQuery.slice(0, -4) + " land";
-    if (!queryCandidates.includes(spaced)) queryCandidates.push(spaced);
-  }
-
-  for (const q of queryCandidates) {
+  for (const q of candidates) {
     // 1. Try Nominatim via local Vite proxy (passes User-Agent and avoids CORS)
     try {
       const proxyRes = await fetch(
@@ -32,79 +65,114 @@ export const searchPlaces = async (query, userPosition = null) => {
       if (proxyRes.ok) {
         const data = await proxyRes.json();
         if (Array.isArray(data) && data.length > 0) {
-          return data.map((item) => ({
-            id: `nom-${item.place_id}`,
-            name: item.display_name.split(",")[0],
-            description: item.display_name,
-            lat: parseFloat(item.lat),
-            lng: parseFloat(item.lon),
-          }));
+          for (const item of data) {
+            const placeId = `nom-${item.place_id}`;
+            if (!seenIds.has(placeId)) {
+              seenIds.add(placeId);
+              collectedPlaces.push({
+                id: placeId,
+                name: item.display_name.split(",")[0],
+                description: item.display_name,
+                lat: parseFloat(item.lat),
+                lng: parseFloat(item.lon),
+              });
+            }
+          }
         }
       }
     } catch {
       // Proxy failed or not on dev server, proceed to external endpoints
     }
 
-    // 2. Try direct Nominatim
-    try {
-      const nomRes = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          q
-        )}&limit=6&countrycodes=id&addressdetails=1`,
-        { signal: AbortSignal.timeout(5000) }
-      );
-      if (nomRes.ok) {
-        const nomData = await nomRes.json();
-        if (Array.isArray(nomData) && nomData.length > 0) {
-          return nomData.map((item) => ({
-            id: `nom-${item.place_id}`,
-            name: item.display_name.split(",")[0],
-            description: item.display_name,
-            lat: parseFloat(item.lat),
-            lng: parseFloat(item.lon),
-          }));
+    // 2. Try direct Nominatim if proxy was unavailable
+    if (collectedPlaces.length === 0) {
+      try {
+        const nomRes = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            q
+          )}&limit=6&countrycodes=id&addressdetails=1`,
+          { signal: AbortSignal.timeout(5000) }
+        );
+        if (nomRes.ok) {
+          const nomData = await nomRes.json();
+          if (Array.isArray(nomData) && nomData.length > 0) {
+            for (const item of nomData) {
+              const placeId = `nom-${item.place_id}`;
+              if (!seenIds.has(placeId)) {
+                seenIds.add(placeId);
+                collectedPlaces.push({
+                  id: placeId,
+                  name: item.display_name.split(",")[0],
+                  description: item.display_name,
+                  lat: parseFloat(item.lat),
+                  lng: parseFloat(item.lon),
+                });
+              }
+            }
+          }
         }
+      } catch {
+        // Continue
       }
-    } catch {
-      // Continue to Photon
     }
 
-    // 3. Try Photon Komoot (without invalid lang parameter, bounded to Indonesia)
-    try {
-      let photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(
-        q
-      )}&limit=6&bbox=95.0,-11.0,141.0,6.0`;
-      if (userPosition && userPosition.lat && userPosition.lng) {
-        photonUrl += `&lat=${userPosition.lat}&lon=${userPosition.lng}`;
-      }
+    // If we already have good results (>= 3), break early
+    if (collectedPlaces.length >= 3) break;
+  }
 
-      const photonRes = await fetch(photonUrl, { signal: AbortSignal.timeout(5000) });
-      if (photonRes.ok) {
-        const pData = await photonRes.json();
-        if (pData.features && pData.features.length > 0) {
-          return pData.features.map((f) => {
-            const p = f.properties || {};
-            const name = p.name || p.street || "Lokasi";
-            const details = [p.street, p.district, p.city, p.state, p.country]
-              .filter(Boolean)
-              .join(", ");
-            const [lon, lat] = f.geometry.coordinates;
-            return {
-              id: `pho-${lat}-${lon}-${name}`,
-              name: name,
-              description: details || name,
-              lat: lat,
-              lng: lon,
-            };
-          });
+  // 3. Photon Komoot fallback if Nominatim had 0 results
+  if (collectedPlaces.length === 0) {
+    for (const q of candidates.slice(0, 2)) {
+      try {
+        let photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(
+          q
+        )}&limit=6&bbox=95.0,-11.0,141.0,6.0`;
+        if (userPosition && userPosition.lat && userPosition.lng) {
+          photonUrl += `&lat=${userPosition.lat}&lon=${userPosition.lng}`;
         }
+
+        const photonRes = await fetch(photonUrl, { signal: AbortSignal.timeout(5000) });
+        if (photonRes.ok) {
+          const pData = await photonRes.json();
+          if (pData.features && pData.features.length > 0) {
+            for (const f of pData.features) {
+              const p = f.properties || {};
+              const name = p.name || p.street || "Lokasi";
+              const details = [p.street, p.district, p.city, p.state, p.country]
+                .filter(Boolean)
+                .join(", ");
+              const [lon, lat] = f.geometry.coordinates;
+              const placeId = `pho-${lat}-${lon}-${name}`;
+              if (!seenIds.has(placeId)) {
+                seenIds.add(placeId);
+                collectedPlaces.push({
+                  id: placeId,
+                  name: name,
+                  description: details || name,
+                  lat: lat,
+                  lng: lon,
+                });
+              }
+            }
+          }
+        }
+      } catch {
+        // Continue
       }
-    } catch {
-      // Continue next query candidate
+      if (collectedPlaces.length > 0) break;
     }
   }
 
-  return [];
+  // If userPosition is available, sort results by distance to user
+  if (userPosition && userPosition.lat && userPosition.lng && collectedPlaces.length > 1) {
+    collectedPlaces.sort((a, b) => {
+      const distA = calculateHaversineDistance(userPosition.lat, userPosition.lng, a.lat, a.lng);
+      const distB = calculateHaversineDistance(userPosition.lat, userPosition.lng, b.lat, b.lng);
+      return distA - distB;
+    });
+  }
+
+  return collectedPlaces.slice(0, 8);
 };
 
 /**
