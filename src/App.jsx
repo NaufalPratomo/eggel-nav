@@ -932,6 +932,7 @@ export default function App() {
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
         onSelectDestination={handleSelectDestination}
+        userPosition={userPosition}
         lang={lang}
         theme={theme}
       />

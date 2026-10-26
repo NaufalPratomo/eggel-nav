@@ -3,10 +3,12 @@
   "short_name": "Eggel Nav",
   "description": "Turn-by-turn navigation on Eggel Tempo 4 Active smartwatch via Telegram and iOS ANCS",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#0f0f12",
+  "theme_color": "#0f0f12",
+  "categories": ["navigation", "sports", "utilities"],
   "icons": [
     {
       "src": "/icon-192.png",

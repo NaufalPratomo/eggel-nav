@@ -7,12 +7,14 @@ export default function SearchModal({
   isOpen,
   onClose,
   onSelectDestination,
+  userPosition = null,
   lang = "id",
   theme = "light",
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const isDark = theme === "dark";
 
@@ -32,7 +34,8 @@ export default function SearchModal({
     if (!query.trim()) return;
 
     setLoading(true);
-    const data = await searchPlaces(query);
+    setHasSearched(true);
+    const data = await searchPlaces(query, userPosition);
     setResults(data);
     setLoading(false);
   };
@@ -63,7 +66,10 @@ export default function SearchModal({
               type="text"
               autoFocus
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setHasSearched(false);
+              }}
               placeholder={t("searchPlaceholder", lang)}
               className={`w-full rounded-xl pl-9 pr-3 py-2.5 text-sm border transition ${
                 isDark
@@ -98,7 +104,7 @@ export default function SearchModal({
 
         {/* Results List */}
         <div
-          className={`max-h-60 overflow-y-auto space-y-1 divide-y ${
+          className={`max-h-64 overflow-y-auto space-y-1 divide-y ${
             isDark ? "divide-[#27272e]" : "divide-slate-100"
           }`}
         >
@@ -136,18 +142,29 @@ export default function SearchModal({
                 </div>
               </button>
             ))
-          ) : query && !loading ? (
-            <p
-              className={`text-center text-xs py-6 ${
-                isDark ? "text-zinc-400" : "text-slate-500"
-              }`}
-            >
-              {t("noPlacesFound", lang)}
-            </p>
+          ) : hasSearched && !loading ? (
+            <div className="py-5 px-3 text-center space-y-2">
+              <p
+                className={`text-xs font-semibold ${
+                  isDark ? "text-zinc-300" : "text-slate-700"
+                }`}
+              >
+                {t("noPlacesFound", lang)}
+              </p>
+              <p
+                className={`text-[11px] leading-relaxed ${
+                  isDark ? "text-zinc-400" : "text-slate-500"
+                }`}
+              >
+                {lang === "en"
+                  ? "Tip: Private housing complexes may not yet be tagged in OpenStreetMap. Try searching by main road, subdistrict name, or tap directly on the map."
+                  : "Tips: Kompleks perumahan baru mungkin belum ditandai di OpenStreetMap. Coba cari nama jalan utama, kelurahan/kecamatan terdekat, atau langsung ketuk titik di peta."}
+              </p>
+            </div>
           ) : (
             <div
               className={`text-center py-6 text-xs ${
-                isDark ? "text-slate-400" : "text-slate-500"
+                isDark ? "text-zinc-400" : "text-slate-500"
               }`}
             >
               <p>{t("searchHint", lang)}</p>

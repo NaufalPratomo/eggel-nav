@@ -1,55 +1,110 @@
 // OSRM Routing & Geocoding Service
 
 /**
- * Search locations using OpenStreetMap Nominatim or Photon
+ * Search locations using OpenStreetMap Nominatim and Photon with Indonesian fallback
  */
-export const searchPlaces = async (query) => {
+export const searchPlaces = async (query, userPosition = null) => {
   if (!query || query.trim().length < 2) return [];
 
-  try {
-    // Photon is fast and has generous CORS policies
-    const response = await fetch(
-      `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5&lang=id`,
-      { signal: AbortSignal.timeout(6000) }
-    );
-    if (!response.ok) throw new Error("Search failed");
-    const data = await response.json();
+  const rawQuery = query.trim();
+  const cleanQuery = rawQuery.replace(/^(perumahan|komplek|kompleks|cluster|residence)\s+/i, "").trim();
 
-    return (data.features || []).map((f) => {
-      const p = f.properties || {};
-      const name = p.name || p.street || "Lokasi";
-      const details = [p.district, p.city, p.state, p.country].filter(Boolean).join(", ");
-      const [lon, lat] = f.geometry.coordinates;
-      return {
-        id: `${lat}-${lon}-${name}`,
-        name: name,
-        description: details || name,
-        lat: lat,
-        lng: lon,
-      };
-    });
-  } catch (error) {
-    console.warn("Photon search failed, falling back to Nominatim:", error);
+  // Try multiple variations if needed (e.g. "patraland" -> "patra land")
+  const queryCandidates = [rawQuery];
+  if (cleanQuery && cleanQuery !== rawQuery) {
+    queryCandidates.push(cleanQuery);
+  }
+  // If single long word with 'land' suffix, also add space variant
+  if (!rawQuery.includes(" ") && rawQuery.toLowerCase().endsWith("land")) {
+    const spaced = rawQuery.slice(0, -4) + " land";
+    if (!queryCandidates.includes(spaced)) queryCandidates.push(spaced);
+  }
+
+  for (const q of queryCandidates) {
+    // 1. Try Nominatim via local Vite proxy (passes User-Agent and avoids CORS)
+    try {
+      const proxyRes = await fetch(
+        `/api/nominatim/search?format=json&q=${encodeURIComponent(
+          q
+        )}&limit=6&countrycodes=id&addressdetails=1`,
+        { signal: AbortSignal.timeout(5000) }
+      );
+      if (proxyRes.ok) {
+        const data = await proxyRes.json();
+        if (Array.isArray(data) && data.length > 0) {
+          return data.map((item) => ({
+            id: `nom-${item.place_id}`,
+            name: item.display_name.split(",")[0],
+            description: item.display_name,
+            lat: parseFloat(item.lat),
+            lng: parseFloat(item.lon),
+          }));
+        }
+      }
+    } catch {
+      // Proxy failed or not on dev server, proceed to external endpoints
+    }
+
+    // 2. Try direct Nominatim
     try {
       const nomRes = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-          query
-        )}&limit=5&countrycodes=id`,
-        { signal: AbortSignal.timeout(6000) }
+          q
+        )}&limit=6&countrycodes=id&addressdetails=1`,
+        { signal: AbortSignal.timeout(5000) }
       );
-      const nomData = await nomRes.json();
-      return nomData.map((item) => ({
-        id: item.place_id,
-        name: item.display_name.split(",")[0],
-        description: item.display_name,
-        lat: parseFloat(item.lat),
-        lng: parseFloat(item.lon),
-      }));
-    } catch (e) {
-      console.error("All geocoding services failed:", e);
-      return [];
+      if (nomRes.ok) {
+        const nomData = await nomRes.json();
+        if (Array.isArray(nomData) && nomData.length > 0) {
+          return nomData.map((item) => ({
+            id: `nom-${item.place_id}`,
+            name: item.display_name.split(",")[0],
+            description: item.display_name,
+            lat: parseFloat(item.lat),
+            lng: parseFloat(item.lon),
+          }));
+        }
+      }
+    } catch {
+      // Continue to Photon
+    }
+
+    // 3. Try Photon Komoot (without invalid lang parameter, bounded to Indonesia)
+    try {
+      let photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(
+        q
+      )}&limit=6&bbox=95.0,-11.0,141.0,6.0`;
+      if (userPosition && userPosition.lat && userPosition.lng) {
+        photonUrl += `&lat=${userPosition.lat}&lon=${userPosition.lng}`;
+      }
+
+      const photonRes = await fetch(photonUrl, { signal: AbortSignal.timeout(5000) });
+      if (photonRes.ok) {
+        const pData = await photonRes.json();
+        if (pData.features && pData.features.length > 0) {
+          return pData.features.map((f) => {
+            const p = f.properties || {};
+            const name = p.name || p.street || "Lokasi";
+            const details = [p.street, p.district, p.city, p.state, p.country]
+              .filter(Boolean)
+              .join(", ");
+            const [lon, lat] = f.geometry.coordinates;
+            return {
+              id: `pho-${lat}-${lon}-${name}`,
+              name: name,
+              description: details || name,
+              lat: lat,
+              lng: lon,
+            };
+          });
+        }
+      }
+    } catch {
+      // Continue next query candidate
     }
   }
+
+  return [];
 };
 
 /**

@@ -9,6 +9,16 @@ export default defineConfig({
     tailwindcss()
   ],
   server: {
-    host: true
+    host: true,
+    proxy: {
+      '/api/nominatim': {
+        target: 'https://nominatim.openstreetmap.org',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/nominatim/, ''),
+        headers: {
+          'User-Agent': 'EggelNav/1.0 (motorcycle-smartwatch-navigation)',
+        },
+      },
+    },
   }
 })

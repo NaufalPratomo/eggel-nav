@@ -10,7 +10,7 @@ createRoot(document.getElementById('root')).render(
 )
 
 // Register service worker for PWA support
-if ("serviceWorker" in navigator && !window.location.host.includes("localhost:517")) {
+if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").catch((err) => {
       console.warn("ServiceWorker registration failed:", err);
