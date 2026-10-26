@@ -219,12 +219,16 @@ export default function Map({
     }
   }, [routeGeometry, isNavigating, theme]);
 
+  // Synchronize Leaflet size when theme changes or window resizes
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    map.invalidateSize();
+  }, [theme]);
+
   return (
-    <div
-      ref={mapContainerRef}
-      className={`w-full h-full transition-all duration-300 ${
-        theme === "dark" ? "dark-map" : ""
-      }`}
-    />
+    <div className={`w-full h-full ${theme === "dark" ? "dark-map" : ""}`}>
+      <div ref={mapContainerRef} className="w-full h-full" />
+    </div>
   );
 }

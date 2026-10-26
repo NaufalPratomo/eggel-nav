@@ -12,15 +12,25 @@ html, body, #root {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Prevent Tailwind v4 preflight from shrinking Leaflet tile images */
+.leaflet-container img {
+  max-width: none !important;
+  max-height: none !important;
+}
+
 /* 
  * Sleek Dark Mode for OpenStreetMap Tiles
  * Eliminates need for any third-party paid/watermarked dark map API keys!
  */
-.dark-map .leaflet-tile {
+.dark-map .leaflet-container {
+  background: #0f172a !important;
+}
+
+.dark-map .leaflet-tile-pane {
   filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.75);
 }
 
-/* Smooth tile transitions */
-.leaflet-tile {
+/* Smooth tile transitions when switching theme */
+.leaflet-tile-pane {
   transition: filter 0.3s ease;
 }
