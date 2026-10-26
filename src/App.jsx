@@ -1,0 +1,872 @@
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import Map from "./components/Map";
+import NavigationHUD from "./components/NavigationHUD";
+import SearchModal from "./components/SearchModal";
+import SettingsModal from "./components/SettingsModal";
+import { fetchRoute } from "./utils/osrm";
+import {
+  calculateHaversineDistance,
+  calculateBearing,
+  calculateDistanceToPolyline,
+  formatDistance,
+  formatDuration,
+} from "./utils/geo";
+import { sendTelegramAlert, formatManeuverMessage } from "./utils/telegram";
+import { keepAlive } from "./utils/audioKeepAlive";
+import {
+  Search,
+  Settings as SettingsIcon,
+  Crosshair,
+  Navigation,
+  X,
+  Loader2,
+  AlertTriangle,
+  Compass,
+  Sun,
+  Moon,
+  MapPin,
+} from "lucide-react";
+
+const DEFAULT_SETTINGS = {
+  botToken: "8863619482:AAH_lEWklKmguELcK3ZJ_LoEdbMrOYwmkWk",
+  chatId: "5694188432",
+  alert1Dist: 150,
+  alert2Dist: 40,
+};
+
+function getSavedSettings() {
+  try {
+    const raw = localStorage.getItem("eggel_nav_settings");
+    if (raw) {
+      return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    }
+  } catch (e) {
+    console.error("Failed to read settings:", e);
+  }
+  return DEFAULT_SETTINGS;
+}
+
+export default function App() {
+  // Settings & Modals
+  const [settings, setSettings] = useState(getSavedSettings);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // Theme state ('light' | 'dark')
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem("eggel_nav_theme") || "light";
+    } catch {
+      return "light";
+    }
+  });
+
+  const toggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === "dark" ? "light" : "dark";
+      try {
+        localStorage.setItem("eggel_nav_theme", next);
+      } catch (e) {
+        console.warn("Failed to save theme:", e);
+      }
+      return next;
+    });
+  };
+
+  // Geolocation state
+  const [userPosition, setUserPosition] = useState(null);
+  const [gpsStatus, setGpsStatus] = useState(() =>
+    typeof navigator !== "undefined" && "geolocation" in navigator ? "locating" : "error"
+  );
+  const [gpsErrorMsg, setGpsErrorMsg] = useState(() =>
+    typeof navigator !== "undefined" && "geolocation" in navigator
+      ? null
+      : "Browser ini tidak mendukung Geolocation."
+  );
+
+  // Route & Navigation state
+  const [destination, setDestination] = useState(null);
+  const [route, setRoute] = useState(null);
+  const [isRouting, setIsRouting] = useState(false);
+  const [routeError, setRouteError] = useState(null);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [lastAlertSent, setLastAlertSent] = useState(null);
+
+  // Map control
+  const [centerTrigger, setCenterTrigger] = useState(0);
+
+  // Synchronization refs for geolocation callback
+  const prevPosRef = useRef(null);
+  const routeRef = useRef(null);
+  const destinationRef = useRef(null);
+  const settingsRef = useRef(settings);
+  const isNavigatingRef = useRef(false);
+  const currentStepIndexRef = useRef(0);
+  const lastRerouteTimeRef = useRef(0);
+  const alertTrackerRef = useRef({
+    stepIndex: 0,
+    alert1Sent: false,
+    alert2Sent: false,
+    lastAlertTime: 0,
+    minDist: Infinity,
+  });
+
+  // Keep refs synchronized with React state
+  useEffect(() => {
+    routeRef.current = route;
+  }, [route]);
+
+  useEffect(() => {
+    destinationRef.current = destination;
+  }, [destination]);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  useEffect(() => {
+    isNavigatingRef.current = isNavigating;
+  }, [isNavigating]);
+
+  useEffect(() => {
+    currentStepIndexRef.current = currentStepIndex;
+  }, [currentStepIndex]);
+
+  // Persist settings
+  const handleSaveSettings = (newSettings) => {
+    setSettings(newSettings);
+    try {
+      localStorage.setItem("eggel_nav_settings", JSON.stringify(newSettings));
+    } catch (e) {
+      console.error("Failed to save settings:", e);
+    }
+  };
+
+  // Fetch route helper
+  const calculateRouteTo = useCallback(async (startPos, dest) => {
+    if (!startPos || !dest) return;
+    setIsRouting(true);
+    setRouteError(null);
+    try {
+      const routeData = await fetchRoute(
+        { lat: startPos.lat, lng: startPos.lng },
+        { lat: dest.lat, lng: dest.lng }
+      );
+      setRoute(routeData);
+    } catch (err) {
+      console.error("Fetch route failed:", err);
+      setRouteError(err.message || "Gagal mendapatkan rute OSRM. Coba tujuan lain.");
+      setRoute(null);
+    } finally {
+      setIsRouting(false);
+    }
+  }, []);
+
+  // Stop navigation
+  const handleStopNavigation = useCallback(() => {
+    setIsNavigating(false);
+    isNavigatingRef.current = false;
+    keepAlive.stop();
+    sendTelegramAlert(settingsRef.current.botToken, settingsRef.current.chatId, "⏹️ NAVIGASI DIAKHIRI");
+    setLastAlertSent(null);
+  }, []);
+
+  // Turn-by-Turn tracking logic executed on each GPS update
+  const processTurnByTurn = useCallback(
+    (currentPos) => {
+      const activeRoute = routeRef.current;
+      const activeDest = destinationRef.current;
+      const activeSettings = settingsRef.current;
+      if (!activeRoute || !activeRoute.steps || activeRoute.steps.length === 0) return;
+
+      const steps = activeRoute.steps;
+      const idx = currentStepIndexRef.current;
+
+      // Final destination reached
+      if (idx >= steps.length) {
+        const arriveMsg = `🏁 TIBA DI TUJUAN\nAnda telah sampai di ${activeDest?.name || "Tujuan"}!`;
+        sendTelegramAlert(activeSettings.botToken, activeSettings.chatId, arriveMsg);
+        setLastAlertSent("Tiba di Tujuan");
+        handleStopNavigation();
+        return;
+      }
+
+      const currentStep = steps[idx];
+      const distToManeuver = calculateHaversineDistance(
+        currentPos.lat,
+        currentPos.lng,
+        currentStep.location.lat,
+        currentStep.location.lng
+      );
+
+      const tracker = alertTrackerRef.current;
+      if (tracker.stepIndex !== idx) {
+        alertTrackerRef.current = {
+          stepIndex: idx,
+          alert1Sent: false,
+          alert2Sent: false,
+          lastAlertTime: tracker.lastAlertTime || 0,
+          minDist: distToManeuver,
+        };
+      } else {
+        tracker.minDist = Math.min(tracker.minDist, distToManeuver);
+      }
+
+      // Check step advancement criteria
+      const hasNext = idx < steps.length - 1;
+      let distToNext = Infinity;
+      if (hasNext) {
+        distToNext = calculateHaversineDistance(
+          currentPos.lat,
+          currentPos.lng,
+          steps[idx + 1].location.lat,
+          steps[idx + 1].location.lng
+        );
+      }
+
+      // 1. Reached maneuver point (< 18m)
+      const reachedManeuver = distToManeuver < 18;
+
+      // 2. Moving away from maneuver towards next step:
+      // Approached the intersection (minDist <= 45m), now moving away (dist > minDist + 10m),
+      // and within the next step's expected range
+      const movingAwayTowardsNext =
+        hasNext &&
+        tracker.minDist <= 45 &&
+        distToManeuver > tracker.minDist + 10 &&
+        (distToNext < (currentStep.distance || 500) + 30 || distToNext < distToManeuver);
+
+      // 3. Already within close proximity of next maneuver (< 20m)
+      const alreadyAtNext = hasNext && distToNext < 20;
+
+      if (reachedManeuver || movingAwayTowardsNext || alreadyAtNext) {
+        const nextIdx = idx + 1;
+        if (nextIdx >= steps.length) {
+          const arriveMsg = `🏁 TIBA DI TUJUAN\nAnda telah sampai di ${activeDest?.name || "Tujuan"}!`;
+          sendTelegramAlert(activeSettings.botToken, activeSettings.chatId, arriveMsg);
+          setLastAlertSent("Tiba di Tujuan");
+          handleStopNavigation();
+          return;
+        }
+
+        currentStepIndexRef.current = nextIdx;
+        setCurrentStepIndex(nextIdx);
+        alertTrackerRef.current = {
+          stepIndex: nextIdx,
+          alert1Sent: false,
+          alert2Sent: false,
+          lastAlertTime: Date.now(),
+          minDist: distToNext,
+        };
+        return;
+      }
+
+      // Proximity Alert Triggers
+      const now = Date.now();
+      const throttleMs = 1500;
+
+      // Alert 2: Imminent maneuver (<= alert2Dist, default 40m)
+      if (distToManeuver <= activeSettings.alert2Dist && !tracker.alert2Sent) {
+        if (now - tracker.lastAlertTime >= throttleMs) {
+          const alertMsg = formatManeuverMessage(
+            distToManeuver,
+            currentStep.type,
+            currentStep.modifier,
+            currentStep.name,
+            true
+          );
+          sendTelegramAlert(activeSettings.botToken, activeSettings.chatId, alertMsg);
+          tracker.alert2Sent = true;
+          tracker.alert1Sent = true;
+          tracker.lastAlertTime = now;
+          setLastAlertSent(alertMsg.split("\n")[0]);
+        }
+      }
+      // Alert 1: Advance warning (<= alert1Dist, default 150m)
+      else if (distToManeuver <= activeSettings.alert1Dist && !tracker.alert1Sent) {
+        if (now - tracker.lastAlertTime >= throttleMs) {
+          const alertMsg = formatManeuverMessage(
+            distToManeuver,
+            currentStep.type,
+            currentStep.modifier,
+            currentStep.name,
+            false
+          );
+          sendTelegramAlert(activeSettings.botToken, activeSettings.chatId, alertMsg);
+          tracker.alert1Sent = true;
+          tracker.lastAlertTime = now;
+          setLastAlertSent(alertMsg.split("\n")[0]);
+        }
+      }
+
+      // Check for off-route deviation (>75m away from polyline using segment projection)
+      if (
+        activeRoute.geometry &&
+        activeRoute.geometry.coordinates &&
+        now - lastRerouteTimeRef.current >= 10000
+      ) {
+        const minDistance = calculateDistanceToPolyline(
+          currentPos.lat,
+          currentPos.lng,
+          activeRoute.geometry.coordinates
+        );
+
+        if (minDistance > 75 && activeDest) {
+          console.log("Off-route detected:", minDistance.toFixed(1), "meters. Recalculating...");
+          lastRerouteTimeRef.current = now;
+          fetchRoute(
+            { lat: currentPos.lat, lng: currentPos.lng },
+            { lat: activeDest.lat, lng: activeDest.lng }
+          )
+            .then((newRoute) => {
+              setRoute(newRoute);
+              routeRef.current = newRoute;
+              const newStep = newRoute.steps.length > 1 ? 1 : 0;
+              currentStepIndexRef.current = newStep;
+              setCurrentStepIndex(newStep);
+              alertTrackerRef.current = {
+                stepIndex: newStep,
+                alert1Sent: false,
+                alert2Sent: false,
+                lastAlertTime: Date.now(),
+                minDist: Infinity,
+              };
+              sendTelegramAlert(
+                activeSettings.botToken,
+                activeSettings.chatId,
+                "🔄 RUTE DIHITUNG ULANG\nMengikuti rute baru..."
+              );
+              setLastAlertSent("Rute Dihitung Ulang");
+            })
+            .catch((e) => {
+              console.warn("Reroute failed:", e);
+            });
+        }
+      }
+    },
+    [handleStopNavigation]
+  );
+
+  // Geolocation watcher
+  useEffect(() => {
+    if (!("geolocation" in navigator)) return;
+
+    let hasFixedLocation = false;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude, longitude, heading, speed, accuracy } = pos.coords;
+        const prev = prevPosRef.current;
+
+        let computedHeading = heading;
+        let computedSpeed = speed;
+
+        if (computedHeading == null || isNaN(computedHeading)) {
+          if (prev) {
+            const dist = calculateHaversineDistance(prev.lat, prev.lng, latitude, longitude);
+            if (dist > 3) {
+              computedHeading = calculateBearing(prev.lat, prev.lng, latitude, longitude);
+            } else {
+              computedHeading = prev.heading || 0;
+            }
+          } else {
+            computedHeading = 0;
+          }
+        }
+
+        if (computedSpeed == null || isNaN(computedSpeed)) {
+          if (prev && prev.timestamp) {
+            const dt = (pos.timestamp - prev.timestamp) / 1000;
+            if (dt > 0.5) {
+              const dist = calculateHaversineDistance(prev.lat, prev.lng, latitude, longitude);
+              computedSpeed = dist / dt;
+            }
+          }
+        }
+
+        const newPos = {
+          lat: latitude,
+          lng: longitude,
+          heading: computedHeading || 0,
+          speed: computedSpeed || 0,
+          accuracy: accuracy,
+          timestamp: pos.timestamp,
+        };
+
+        prevPosRef.current = newPos;
+        setUserPosition(newPos);
+        setGpsStatus("ready");
+        setGpsErrorMsg(null);
+
+        // Auto-fetch route if destination was already selected before GPS fixed
+        if (!hasFixedLocation) {
+          hasFixedLocation = true;
+          if (destinationRef.current && !routeRef.current) {
+            calculateRouteTo(newPos, destinationRef.current);
+          }
+        }
+
+        // Live turn-by-turn processing if navigating
+        if (isNavigatingRef.current) {
+          processTurnByTurn(newPos);
+        }
+      },
+      (err) => {
+        console.warn("GPS error:", err);
+        setGpsStatus("error");
+        if (err.code === 1) {
+          setGpsErrorMsg("Izin lokasi ditolak. Aktifkan lokasi di pengaturan browser.");
+        } else if (err.code === 2) {
+          setGpsErrorMsg("Sinyal GPS tidak ditemukan.");
+        } else {
+          setGpsErrorMsg("Waktu tunggu GPS habis.");
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 1000,
+        timeout: 10000,
+      }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, [calculateRouteTo, processTurnByTurn]);
+
+  // Destination pick handlers
+  const handleSelectDestination = (place) => {
+    if (isNavigating) {
+      if (!window.confirm("Ganti tujuan dan akhiri navigasi saat ini?")) {
+        return;
+      }
+      handleStopNavigation();
+    }
+    setDestination(place);
+    destinationRef.current = place;
+    if (userPosition) {
+      calculateRouteTo(userPosition, place);
+    }
+  };
+
+  const handleMapClick = (latlng) => {
+    if (isNavigating) return;
+    const place = {
+      name: `Titik Pilihan (${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)})`,
+      lat: latlng.lat,
+      lng: latlng.lng,
+    };
+    setDestination(place);
+    destinationRef.current = place;
+    if (userPosition) {
+      calculateRouteTo(userPosition, place);
+    }
+  };
+
+  const handleClearDestination = () => {
+    if (isNavigating) {
+      handleStopNavigation();
+    }
+    setDestination(null);
+    destinationRef.current = null;
+    setRoute(null);
+    routeRef.current = null;
+    setRouteError(null);
+  };
+
+  // Start Navigation
+  const handleStartNavigation = async () => {
+    if (!route || !route.steps || route.steps.length === 0) return;
+
+    setIsNavigating(true);
+    isNavigatingRef.current = true;
+    let startStep = route.steps.length > 1 ? 1 : 0;
+    if (userPosition && route.steps.length > 2) {
+      for (let i = 1; i < route.steps.length; i++) {
+        const d = calculateHaversineDistance(
+          userPosition.lat,
+          userPosition.lng,
+          route.steps[i].location.lat,
+          route.steps[i].location.lng
+        );
+        if (d > 18) {
+          startStep = i;
+          break;
+        }
+      }
+    }
+    currentStepIndexRef.current = startStep;
+    setCurrentStepIndex(startStep);
+
+    alertTrackerRef.current = {
+      stepIndex: startStep,
+      alert1Sent: false,
+      alert2Sent: false,
+      lastAlertTime: 0,
+      minDist: Infinity,
+    };
+
+    // Activate Silent Audio Loop & WakeLock for iOS background execution
+    await keepAlive.start();
+
+    // Send initial Telegram notification to confirm connection with smartwatch
+    const startMsg = `🚀 NAVIGASI DIMULAI\nTujuan: ${destination?.name || "Tujuan"}\nJarak: ${formatDistance(route.distance)} (${formatDuration(route.duration)})`;
+    sendTelegramAlert(settings.botToken, settings.chatId, startMsg);
+    setLastAlertSent("Navigasi Dimulai");
+  };
+
+  // Re-center map on user
+  const handleCenterUser = () => {
+    setCenterTrigger((c) => c + 1);
+  };
+
+  // Calculations for NavigationHUD
+  const currentStep = route?.steps?.[currentStepIndex];
+
+  const distToNextStep = useMemo(() => {
+    if (!userPosition || !currentStep) return 0;
+    return calculateHaversineDistance(
+      userPosition.lat,
+      userPosition.lng,
+      currentStep.location.lat,
+      currentStep.location.lng
+    );
+  }, [userPosition, currentStep]);
+
+  const totalRemainingDistance = useMemo(() => {
+    if (!route || !route.steps || currentStepIndex >= route.steps.length) return 0;
+    let dist = distToNextStep;
+    for (let i = currentStepIndex; i < route.steps.length; i++) {
+      dist += route.steps[i].distance;
+    }
+    return Math.round(dist);
+  }, [route, currentStepIndex, distToNextStep]);
+
+  const totalRemainingDuration = useMemo(() => {
+    if (!route || !route.steps || currentStepIndex >= route.steps.length) return 0;
+    if (userPosition && userPosition.speed > 2) {
+      return Math.max(0, Math.round(totalRemainingDistance / userPosition.speed));
+    }
+    let dur = 0;
+    for (let i = currentStepIndex; i < route.steps.length; i++) {
+      dur += route.steps[i].duration;
+    }
+    const prevStep = currentStepIndex > 0 ? route.steps[currentStepIndex - 1] : null;
+    if (prevStep && prevStep.distance > 0) {
+      dur += (distToNextStep / prevStep.distance) * prevStep.duration;
+    } else {
+      dur += distToNextStep / 7;
+    }
+    return Math.max(0, Math.round(dur));
+  }, [route, currentStepIndex, distToNextStep, totalRemainingDistance, userPosition]);
+
+  return (
+    <div
+      className={`relative w-screen h-screen overflow-hidden select-none transition-colors duration-300 ${
+        theme === "dark" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-800"
+      }`}
+    >
+      {/* Map Component */}
+      <Map
+        userPosition={userPosition}
+        destination={destination}
+        routeGeometry={route?.geometry}
+        isNavigating={isNavigating}
+        onMapClick={handleMapClick}
+        centerTrigger={centerTrigger}
+        theme={theme}
+      />
+
+      {/* Top Header Controls (inspired by 4427554.jpg transit app) */}
+      {!isNavigating && (
+        <div className="absolute top-0 inset-x-0 p-3 pt-safe z-[1000] pointer-events-none">
+          <div className="pointer-events-auto max-w-lg mx-auto bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 text-white px-4 py-3 rounded-3xl shadow-xl flex items-center justify-between gap-3 border border-indigo-400/30">
+            {/* Logo / GPS status */}
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-inner">
+                <Compass className="w-5 h-5 animate-[spin_12s_linear_infinite]" />
+              </div>
+              <div>
+                <h1 className="text-sm font-black tracking-wide leading-none">Eggel Nav</h1>
+                <div className="flex items-center gap-1.5 text-[10px] mt-1">
+                  {gpsStatus === "ready" ? (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-emerald-100 font-semibold">GPS Terhubung</span>
+                    </>
+                  ) : gpsStatus === "locating" ? (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-amber-300 animate-pulse" />
+                      <span className="text-amber-100 font-medium">Mencari GPS...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-rose-400" />
+                      <span className="text-rose-100 font-medium truncate max-w-[90px]">
+                        GPS Error
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Actions: Search, Mode Toggle (Light/Dark), Settings */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setIsSearchOpen(true)}
+                className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-2xl backdrop-blur-md border border-white/25 text-xs font-bold transition active:scale-95 shadow-sm"
+              >
+                <Search className="w-3.5 h-3.5" />
+                <span>Cari</span>
+              </button>
+
+              <button
+                onClick={toggleTheme}
+                className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-2xl backdrop-blur-md border border-white/25 transition active:scale-95 shadow-sm"
+                aria-label="Toggle Theme"
+                title={theme === "dark" ? "Mode Terang" : "Mode Gelap"}
+              >
+                {theme === "dark" ? (
+                  <Sun className="w-4 h-4 text-amber-300" />
+                ) : (
+                  <Moon className="w-4 h-4 text-white" />
+                )}
+              </button>
+
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-2xl backdrop-blur-md border border-white/25 transition active:scale-95 shadow-sm"
+                aria-label="Pengaturan"
+              >
+                <SettingsIcon className="w-4 h-4 text-white" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Re-center button (Bottom right, when not navigating) */}
+      {!isNavigating && (
+        <button
+          onClick={handleCenterUser}
+          className={`absolute right-4 bottom-28 z-[1000] p-3 rounded-2xl shadow-xl active:scale-95 transition border ${
+            theme === "dark"
+              ? "bg-slate-900/90 backdrop-blur-md border-slate-700/60 text-blue-400 hover:bg-slate-800"
+              : "bg-white/95 backdrop-blur-md border-slate-200/80 text-indigo-600 hover:bg-slate-50"
+          }`}
+          aria-label="Pusatkan Lokasi Saya"
+        >
+          <Crosshair className="w-5 h-5" />
+        </button>
+      )}
+
+      {/* GPS Error Notification Banner */}
+      {gpsErrorMsg && !isNavigating && (
+        <div className="absolute top-20 inset-x-4 z-[1000] max-w-md mx-auto bg-amber-500/90 text-white p-3 rounded-2xl text-xs flex items-center gap-2.5 shadow-xl backdrop-blur-sm border border-amber-400">
+          <AlertTriangle className="w-5 h-5 shrink-0" />
+          <span className="flex-1 font-medium">{gpsErrorMsg}</span>
+        </div>
+      )}
+
+      {/* Bottom Route Preview Card (when destination selected & not navigating, inspired by 4427554.jpg) */}
+      {!isNavigating && destination && (
+        <div className="absolute bottom-4 inset-x-4 z-[1000] max-w-lg mx-auto">
+          <div
+            className={`rounded-3xl p-4 shadow-2xl border transition-all ${
+              theme === "dark"
+                ? "bg-slate-900/95 text-white border-slate-800"
+                : "bg-white/95 text-slate-800 border-slate-100"
+            }`}
+          >
+            {/* Header info */}
+            <div
+              className={`flex items-center justify-between pb-2.5 border-b ${
+                theme === "dark" ? "border-slate-800" : "border-slate-100"
+              }`}
+            >
+              <span
+                className={`text-[11px] font-bold uppercase tracking-wider ${
+                  theme === "dark" ? "text-indigo-400" : "text-indigo-600"
+                }`}
+              >
+                Rute Perjalanan
+              </span>
+              <button
+                onClick={handleClearDestination}
+                className={`p-1.5 rounded-xl transition ${
+                  theme === "dark"
+                    ? "text-slate-400 hover:text-white hover:bg-slate-800"
+                    : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                }`}
+                aria-label="Hapus Tujuan"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* From - To visual cards like 4427554.jpg */}
+            <div className="space-y-2 py-2.5">
+              {/* Origin card */}
+              <div
+                className={`flex items-center gap-3 p-2.5 rounded-2xl border transition ${
+                  theme === "dark"
+                    ? "bg-slate-800/80 border-slate-700/60"
+                    : "bg-slate-50 border-slate-200/60"
+                }`}
+              >
+                <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-950/80 flex items-center justify-center shrink-0">
+                  <div className="w-3 h-3 rounded-full bg-blue-600 ring-4 ring-blue-300/40 animate-pulse" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Dari</span>
+                  <p className="text-xs font-semibold truncate text-slate-700 dark:text-slate-200">
+                    Lokasi Saya Saat Ini
+                  </p>
+                </div>
+              </div>
+
+              {/* Destination card */}
+              <div
+                className={`flex items-center gap-3 p-2.5 rounded-2xl border transition ${
+                  theme === "dark"
+                    ? "bg-slate-800/80 border-slate-700/60"
+                    : "bg-emerald-50/70 border-emerald-200/60"
+                }`}
+              >
+                <div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-950/80 flex items-center justify-center shrink-0 text-emerald-600 dark:text-emerald-400">
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block">
+                    Tujuan
+                  </span>
+                  <p className="text-xs font-bold truncate text-slate-900 dark:text-white">
+                    {destination.name}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Route Stats (Distance & Duration) */}
+            {isRouting ? (
+              <div className="flex items-center justify-center gap-2 py-3 text-xs text-slate-400 font-medium">
+                <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                <span>Menghitung rute tercepat...</span>
+              </div>
+            ) : routeError ? (
+              <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-2.5 rounded-xl text-xs text-rose-600 dark:text-rose-300 font-medium">
+                {routeError}
+              </div>
+            ) : route ? (
+              <div className="grid grid-cols-2 gap-2.5 py-1">
+                <div
+                  className={`p-2.5 rounded-2xl border ${
+                    theme === "dark"
+                      ? "bg-slate-800/70 border-slate-700/60"
+                      : "bg-slate-50 border-slate-200/60"
+                  }`}
+                >
+                  <span className="text-[10px] text-slate-400 uppercase font-bold">Total Jarak</span>
+                  <p className="text-lg font-black text-slate-900 dark:text-white mt-0.5">
+                    {formatDistance(route.distance)}
+                  </p>
+                </div>
+                <div
+                  className={`p-2.5 rounded-2xl border ${
+                    theme === "dark"
+                      ? "bg-slate-800/70 border-slate-700/60"
+                      : "bg-indigo-50/70 border-indigo-100"
+                  }`}
+                >
+                  <span
+                    className={`text-[10px] uppercase font-bold ${
+                      theme === "dark" ? "text-indigo-400" : "text-indigo-600"
+                    }`}
+                  >
+                    Estimasi Waktu
+                  </span>
+                  <p
+                    className={`text-lg font-black mt-0.5 ${
+                      theme === "dark" ? "text-indigo-400" : "text-indigo-600"
+                    }`}
+                  >
+                    {formatDuration(route.duration)}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2.5 pt-2">
+              <button
+                onClick={handleClearDestination}
+                className={`px-4 py-3 text-xs font-bold rounded-2xl transition active:scale-95 border ${
+                  theme === "dark"
+                    ? "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-200"
+                }`}
+              >
+                Batal
+              </button>
+
+              <button
+                disabled={isRouting || !route}
+                onClick={handleStartNavigation}
+                className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 text-white text-sm font-bold rounded-2xl shadow-lg shadow-indigo-500/25 transition active:scale-95"
+              >
+                <Navigation className="w-4 h-4" />
+                <span>Mulai Navigasi</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Map click hint when no destination is chosen */}
+      {!isNavigating && !destination && (
+        <div className="absolute bottom-6 inset-x-4 z-[1000] max-w-sm mx-auto pointer-events-none">
+          <div
+            className={`backdrop-blur-md border text-xs py-2.5 px-4 rounded-2xl text-center shadow-lg transition-all ${
+              theme === "dark"
+                ? "bg-slate-900/85 border-slate-700/60 text-slate-300"
+                : "bg-white/95 border-slate-200 text-slate-600"
+            }`}
+          >
+            Ketuk di mana saja pada peta atau klik <b>Cari</b>
+          </div>
+        </div>
+      )}
+
+      {/* Live Turn-by-Turn HUD (during active navigation) */}
+      {isNavigating && (
+        <NavigationHUD
+          currentStep={currentStep}
+          distanceToNextStep={distToNextStep}
+          totalRemainingDistance={totalRemainingDistance}
+          totalRemainingDuration={totalRemainingDuration}
+          currentSpeed={userPosition?.speed}
+          lastAlertSent={lastAlertSent}
+          onStopNavigation={handleStopNavigation}
+          theme={theme}
+        />
+      )}
+
+      {/* Search Modal */}
+      <SearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onSelectDestination={handleSelectDestination}
+      />
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={settings}
+        onSaveSettings={handleSaveSettings}
+      />
+    </div>
+  );
+}
