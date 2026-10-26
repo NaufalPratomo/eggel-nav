@@ -11,3 +11,16 @@ html, body, #root {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+/* 
+ * Sleek Dark Mode for OpenStreetMap Tiles
+ * Eliminates need for any third-party paid/watermarked dark map API keys!
+ */
+.dark-map .leaflet-tile {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.75);
+}
+
+/* Smooth tile transitions */
+.leaflet-tile {
+  transition: filter 0.3s ease;
+}

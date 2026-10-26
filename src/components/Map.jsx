@@ -132,7 +132,7 @@ export default function Map({
     };
   }, []);
 
-  // Update Tile Layer when Theme changes
+  // Initialize standard OpenStreetMap Tile Layer (100% Free, NO API Key needed, No Watermarks)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -141,16 +141,13 @@ export default function Map({
       map.removeLayer(tileLayerRef.current);
     }
 
-    const tileUrl =
-      theme === "dark"
-        ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+    const tileUrl = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
     tileLayerRef.current = L.tileLayer(tileUrl, {
       maxZoom: 19,
-      subdomains: "abcd",
+      attribution: "&copy; OpenStreetMap contributors",
     }).addTo(map);
-  }, [theme]);
+  }, []);
 
   // Update user marker
   useEffect(() => {
@@ -232,5 +229,12 @@ export default function Map({
     }
   }, [routeGeometry, isNavigating, theme]);
 
-  return <div ref={mapContainerRef} className="w-full h-full" />;
+  return (
+    <div
+      ref={mapContainerRef}
+      className={`w-full h-full transition-all duration-300 ${
+        theme === "dark" ? "dark-map" : ""
+      }`}
+    />
+  );
 }
