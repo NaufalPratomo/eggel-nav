@@ -1,7 +1,7 @@
 # Eggel Nav
 
-> Universal Turn-by-Turn Motorcycle Navigation PWA for Non-Android Smartwatches  
-> Solusi navigasi motor dengan notifikasi getar dan panduan arah belokan untuk semua smartwatch non-Android (RTOS) melalui integrasi Telegram Bot dan sinkronisasi notifikasi iOS (ANCS) / Android.
+> Universal Turn-by-Turn Navigation PWA for Non-Android Smartwatches  
+> Solusi navigasi turn-by-turn dengan notifikasi getar dan panduan arah belokan untuk semua smartwatch non-Android (RTOS) melalui integrasi Telegram Bot dan sinkronisasi notifikasi iOS (ANCS) / Android. Bekerja untuk sepeda motor, mobil, sepeda, hingga aktivitas outdoor.
 
 ---
 
@@ -23,7 +23,18 @@ Eggel Nav memanfaatkan keunggulan tersebut dengan pendekatan jembatan notifikasi
 1. Smartphone memproses kalkulasi rute jalan dan pergerakan GPS secara real-time.
 2. Saat mendekati titik belokan, Eggel Nav secara otomatis mengirimkan instruksi manuver ringkas ke Telegram Bot pribadi pengguna.
 3. Notifikasi pesan Telegram tersebut seketika diteruskan oleh sistem operasi ponsel melalui Bluetooth (via Apple Notification Center Service / ANCS pada iOS atau Notification Listener pada Android) langsung ke jam tangan pintar.
-4. **Hasilnya:** Smartwatch non-Android Anda akan **bergetar** di pergelangan tangan dan memunculkan **instruksi arah belokan** di layar jam tanpa Anda perlu memasang holder HP atau menatap layar smartphone saat berkendara.
+4. **Hasilnya:** Smartwatch non-Android Anda akan **bergetar** di pergelangan tangan dan memunculkan **instruksi arah belokan** di layar jam tanpa Anda perlu memasang holder HP atau menatap layar smartphone saat bepergian.
+
+---
+
+## Moda Transportasi & Skenario Penggunaan
+
+Eggel Nav menggunakan mesin perutean jalan raya OSRM (*driving profile*) sehingga fleksibel digunakan untuk berbagai kebutuhan perjalanan:
+
+- **Sepeda Motor & Skuter**: Pengendara tidak perlu memasang phone holder di stang motor atau membahayakan diri menatap layar HP di jalan raya. Cukup rasakan getaran di pergelangan tangan untuk mengetahui kapan harus berbelok.
+- **Mobil**: Sangat membantu untuk kendaraan yang belum dilengkapi head unit Apple CarPlay atau Android Auto. Notifikasi getar di jam tangan memberi tanda persiapan belokan tanpa pengemudi harus memalingkan pandangan dari kaca depan mobil.
+- **Sepeda (Road Bike / Gowes)**: Pesepeda dapat tetap memegang stang dengan kedua tangan secara aman sambil menerima arah rute jalan raya langsung di jam tangan pintar.
+- **Jogging / Jalan Kaki di Rute Perkotaan**: Memberi panduan navigasi jalan saat smartphone disimpan di dalam saku celana, jaket, atau tas pinggang lari.
 
 ---
 
@@ -42,7 +53,7 @@ Solusi ini bekerja secara universal pada seluruh jam tangan pintar yang mendukun
 
 ## Fitur Utama
 
-- **Turn-by-Turn Motorcycle Navigation**: Perutean kendaraan bermotor menggunakan engine Open Source Routing Machine (OSRM) dengan instruksi manuver visual yang presisi.
+- **Turn-by-Turn Navigation (Driving Profile)**: Perutean jalan raya menggunakan engine Open Source Routing Machine (OSRM) dengan instruksi manuver visual yang presisi, cocok untuk sepeda motor, mobil, sepeda jalan raya, maupun jalan santai.
 - **Smartwatch Haptic Vibration (Dual-Alert System)**:
   - **Peringatan 1 (Advance Turn Warning ~150m)**: Memberi getaran persiapan awal sebelum belokan (misal: `[150m] BELOK KIRI`).
   - **Peringatan 2 (Imminent Turn Execution ~40m)**: Memberi getaran penegasan saat titik belokan berada tepat di depan (misal: `[40m] BELOK KIRI SEKARANG`).
@@ -53,7 +64,7 @@ Solusi ini bekerja secara universal pada seluruh jam tangan pintar yang mendukun
   - **Auto-Resolution Area Perumahan**: Memetakan pencarian nama perumahan cluster (contoh: *Patraland Tasikmadu Malang*) ke entitas administratif yang terdaftar di OpenStreetMap.
 - **Background & Sensor Keep-Alive (iOS & Android)**:
   - **Silent Audio Loop & WebAudio Oscillator**: Menjaga proses GPS tetap berjalan di latar belakang saat smartphone berada di dalam saku celana atau layar ponsel dalam keadaan terkunci.
-  - **Screen WakeLock API**: Menjaga layar tetap aktif saat smartphone diletakkan pada holder stang motor.
+  - **Screen WakeLock API**: Menjaga layar tetap aktif saat smartphone diletakkan pada holder stang motor atau dashboard mobil.
 - **Estimasi Waktu & Kecepatan Stabil**:
   - Menggunakan profil kecepatan jalan resmi dari OSRM per segmen rute sehingga estimasi sisa waktu tidak melonjak drastis saat berhenti di lampu merah.
   - Format waktu kedatangan 24 jam dengan penanda zona waktu lokal Indonesia otomatis (WIB, WITA, WIT).
