@@ -49,6 +49,10 @@ const generateQueryCandidates = (query) => {
 export const searchPlaces = async (query, userPosition = null) => {
   if (!query || query.trim().length < 2) return [];
 
+  const rawQuery = query.trim();
+  const cleanQuery = rawQuery.replace(/^(perumahan|komplek|kompleks|cluster|residence|apartemen)\s+/i, "");
+  const firstWord = cleanQuery.split(/\s+/)[0];
+
   const candidates = generateQueryCandidates(query);
   const collectedPlaces = [];
   const seenIds = new Set();
@@ -60,7 +64,7 @@ export const searchPlaces = async (query, userPosition = null) => {
         `/api/nominatim/search?format=json&q=${encodeURIComponent(
           q
         )}&limit=6&countrycodes=id&addressdetails=1`,
-        { signal: AbortSignal.timeout(5000) }
+        { signal: AbortSignal.timeout(4500) }
       );
       if (proxyRes.ok) {
         const data = await proxyRes.json();
@@ -69,9 +73,23 @@ export const searchPlaces = async (query, userPosition = null) => {
             const placeId = `nom-${item.place_id}`;
             if (!seenIds.has(placeId)) {
               seenIds.add(placeId);
+              let name = item.display_name.split(",")[0];
+
+              // If user searched for a specific housing/place name (e.g. patraland)
+              // that matched via an administrative area (e.g. Tasikmadu),
+              // enrich the label so the user clearly sees their searched destination:
+              if (
+                firstWord &&
+                firstWord.length >= 4 &&
+                !item.display_name.toLowerCase().includes(firstWord.toLowerCase())
+              ) {
+                const capitalized = firstWord.charAt(0).toUpperCase() + firstWord.slice(1);
+                name = `${capitalized} - ${name}`;
+              }
+
               collectedPlaces.push({
                 id: placeId,
-                name: item.display_name.split(",")[0],
+                name: name,
                 description: item.display_name,
                 lat: parseFloat(item.lat),
                 lng: parseFloat(item.lon),
@@ -81,46 +99,14 @@ export const searchPlaces = async (query, userPosition = null) => {
         }
       }
     } catch {
-      // Proxy failed or not on dev server, proceed to external endpoints
+      // Continue next candidate
     }
 
-    // 2. Try direct Nominatim if proxy was unavailable
-    if (collectedPlaces.length === 0) {
-      try {
-        const nomRes = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-            q
-          )}&limit=6&countrycodes=id&addressdetails=1`,
-          { signal: AbortSignal.timeout(5000) }
-        );
-        if (nomRes.ok) {
-          const nomData = await nomRes.json();
-          if (Array.isArray(nomData) && nomData.length > 0) {
-            for (const item of nomData) {
-              const placeId = `nom-${item.place_id}`;
-              if (!seenIds.has(placeId)) {
-                seenIds.add(placeId);
-                collectedPlaces.push({
-                  id: placeId,
-                  name: item.display_name.split(",")[0],
-                  description: item.display_name,
-                  lat: parseFloat(item.lat),
-                  lng: parseFloat(item.lon),
-                });
-              }
-            }
-          }
-        }
-      } catch {
-        // Continue
-      }
-    }
-
-    // If we already have good results (>= 3), break early
+    // If we have >= 3 results, stop early for snappy response
     if (collectedPlaces.length >= 3) break;
   }
 
-  // 3. Photon Komoot fallback if Nominatim had 0 results
+  // 2. Photon Komoot fallback if proxy / Nominatim had 0 results
   if (collectedPlaces.length === 0) {
     for (const q of candidates.slice(0, 2)) {
       try {
@@ -131,20 +117,31 @@ export const searchPlaces = async (query, userPosition = null) => {
           photonUrl += `&lat=${userPosition.lat}&lon=${userPosition.lng}`;
         }
 
-        const photonRes = await fetch(photonUrl, { signal: AbortSignal.timeout(5000) });
+        const photonRes = await fetch(photonUrl, { signal: AbortSignal.timeout(4000) });
         if (photonRes.ok) {
           const pData = await photonRes.json();
           if (pData.features && pData.features.length > 0) {
             for (const f of pData.features) {
               const p = f.properties || {};
-              const name = p.name || p.street || "Lokasi";
+              let name = p.name || p.street || "Lokasi";
               const details = [p.street, p.district, p.city, p.state, p.country]
                 .filter(Boolean)
                 .join(", ");
               const [lon, lat] = f.geometry.coordinates;
               const placeId = `pho-${lat}-${lon}-${name}`;
+
               if (!seenIds.has(placeId)) {
                 seenIds.add(placeId);
+                if (
+                  firstWord &&
+                  firstWord.length >= 4 &&
+                  !details.toLowerCase().includes(firstWord.toLowerCase()) &&
+                  !name.toLowerCase().includes(firstWord.toLowerCase())
+                ) {
+                  const capitalized = firstWord.charAt(0).toUpperCase() + firstWord.slice(1);
+                  name = `${capitalized} - ${name}`;
+                }
+
                 collectedPlaces.push({
                   id: placeId,
                   name: name,
@@ -163,7 +160,7 @@ export const searchPlaces = async (query, userPosition = null) => {
     }
   }
 
-  // If userPosition is available, sort results by distance to user
+  // If userPosition is available, sort results by proximity to user
   if (userPosition && userPosition.lat && userPosition.lng && collectedPlaces.length > 1) {
     collectedPlaces.sort((a, b) => {
       const distA = calculateHaversineDistance(userPosition.lat, userPosition.lng, a.lat, a.lng);

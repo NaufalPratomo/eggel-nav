@@ -27,10 +27,37 @@ export default function SearchModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
+  const handleQueryChange = (val) => {
+    setQuery(val);
+    if (val.trim().length >= 2) {
+      setLoading(true);
+    } else {
+      setResults([]);
+      setLoading(false);
+      setHasSearched(false);
+    }
+  };
+
+  // Real-time live auto-search as user types each word
+  useEffect(() => {
+    if (!isOpen) return;
+    const trimmed = query.trim();
+    if (trimmed.length < 2) return;
+
+    const timer = setTimeout(async () => {
+      setHasSearched(true);
+      const data = await searchPlaces(trimmed, userPosition);
+      setResults(data);
+      setLoading(false);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [query, isOpen, userPosition]);
+
   if (!isOpen) return null;
 
   const handleSearch = async (e) => {
-    e.preventDefault();
+    e?.preventDefault?.();
     if (!query.trim()) return;
 
     setLoading(true);
@@ -66,17 +93,27 @@ export default function SearchModal({
               type="text"
               autoFocus
               value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setHasSearched(false);
-              }}
+              onChange={(e) => handleQueryChange(e.target.value)}
               placeholder={t("searchPlaceholder", lang)}
-              className={`w-full rounded-xl pl-9 pr-3 py-2.5 text-sm border transition ${
+              className={`w-full rounded-xl pl-9 pr-8 py-2.5 text-sm border transition ${
                 isDark
                   ? "bg-[#1f1f25] border-[#2c2c36] text-white placeholder-zinc-500 focus:outline-none focus:border-[#d2fc15]"
                   : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-slate-800 focus:bg-white"
               }`}
             />
+            {query && (
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery("");
+                  setResults([]);
+                  setHasSearched(false);
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-white"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
           <button
             type="submit"
