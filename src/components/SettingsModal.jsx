@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Settings, X, Bell, Globe } from "lucide-react";
 import { sendTelegramAlert } from "../utils/telegram";
+import { formatTime24h, getTimeZoneLabel } from "../utils/geo";
 import { t } from "../utils/i18n";
 
 function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
@@ -25,15 +26,12 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
     setTesting(true);
     setTestStatus(null);
 
-    const now = new Date().toLocaleTimeString(language === "en" ? "en-US" : "id-ID", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const now = `${formatTime24h()} ${getTimeZoneLabel()}`;
 
     const isEn = language === "en";
     const message = isEn
-      ? `[TEST] ⬅️ TURN LEFT (100m)\nMain Street Avenue\n(Watch Vibration Test: ${now})`
-      : `[TEST] ⬅️ BELOK KIRI (100m)\nJl. Margonda Raya\n(Tes Getar Jam: ${now})`;
+      ? `[TEST] TURN LEFT (100m)\nMain Street Avenue\n(Watch Vibration Test: ${now})`
+      : `[TEST] BELOK KIRI (100m)\nJl. Margonda Raya\n(Tes Getar Jam: ${now})`;
 
     const result = await sendTelegramAlert(botToken, chatId, message);
     setTesting(false);

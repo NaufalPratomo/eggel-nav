@@ -194,8 +194,8 @@ export default function App() {
       // Final destination reached
       if (idx >= steps.length) {
         const arriveMsg = isEn
-          ? `🏁 ARRIVED AT DESTINATION\nYou have reached ${activeDest?.name || "Destination"}!`
-          : `🏁 TIBA DI TUJUAN\nAnda telah sampai di ${activeDest?.name || "Tujuan"}!`;
+          ? `ARRIVED AT DESTINATION\nYou have reached ${activeDest?.name || "Destination"}!`
+          : `TIBA DI TUJUAN\nAnda telah sampai di ${activeDest?.name || "Tujuan"}!`;
         sendTelegramAlert(activeSettings.botToken, activeSettings.chatId, arriveMsg);
         setLastAlertSent(t("arrived", activeSettings.language));
         handleStopNavigation();
@@ -254,8 +254,8 @@ export default function App() {
         const nextIdx = idx + 1;
         if (nextIdx >= steps.length) {
           const arriveMsg = isEn
-            ? `🏁 ARRIVED AT DESTINATION\nYou have reached ${activeDest?.name || "Destination"}!`
-            : `🏁 TIBA DI TUJUAN\nAnda telah sampai di ${activeDest?.name || "Tujuan"}!`;
+            ? `ARRIVED AT DESTINATION\nYou have reached ${activeDest?.name || "Destination"}!`
+            : `TIBA DI TUJUAN\nAnda telah sampai di ${activeDest?.name || "Tujuan"}!`;
           sendTelegramAlert(activeSettings.botToken, activeSettings.chatId, arriveMsg);
           setLastAlertSent(t("arrived", activeSettings.language));
           handleStopNavigation();
@@ -347,8 +347,8 @@ export default function App() {
                 minDist: Infinity,
               };
               const rerouteMsg = isEn
-                ? "🔄 ROUTE RECALCULATED\nFollowing new route..."
-                : "🔄 RUTE DIHITUNG ULANG\nMengikuti rute baru...";
+                ? "ROUTE RECALCULATED\nFollowing new route..."
+                : "RUTE DIHITUNG ULANG\nMengikuti rute baru...";
               sendTelegramAlert(
                 activeSettings.botToken,
                 activeSettings.chatId,
@@ -541,8 +541,8 @@ export default function App() {
     // Send initial Telegram notification to confirm connection with smartwatch
     const isEn = lang === "en";
     const startMsg = isEn
-      ? `🚀 NAVIGATION STARTED\nDestination: ${destination?.name || "Destination"}\nDistance: ${formatDistance(route.distance)} (${formatDuration(route.duration, "en")})`
-      : `🚀 NAVIGASI DIMULAI\nTujuan: ${destination?.name || "Tujuan"}\nJarak: ${formatDistance(route.distance)} (${formatDuration(route.duration, "id")})`;
+      ? `NAVIGATION STARTED\nDestination: ${destination?.name || "Destination"}\nDistance: ${formatDistance(route.distance)} (${formatDuration(route.duration, "en")})`
+      : `NAVIGASI DIMULAI\nTujuan: ${destination?.name || "Tujuan"}\nJarak: ${formatDistance(route.distance)} (${formatDuration(route.duration, "id")})`;
     sendTelegramAlert(settings.botToken, settings.chatId, startMsg);
     setLastAlertSent(t("navStarted", lang));
   };
