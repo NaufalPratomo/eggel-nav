@@ -66,6 +66,57 @@ export const calculateDistanceToSegment = (pLat, pLng, aLat, aLng, bLat, bLng) =
 };
 
 /**
+ * Projects point P(lat, lng) onto segment A-B, returning projected coordinate and distance
+ */
+export const projectPointOnSegment = (pLat, pLng, aLat, aLng, bLat, bLng) => {
+  const cosLat = Math.cos((pLat * Math.PI) / 180);
+  const x = (pLng - aLng) * cosLat * 111320;
+  const y = (pLat - aLat) * 111320;
+  const dx = (bLng - aLng) * cosLat * 111320;
+  const dy = (bLat - aLat) * 111320;
+  const lenSq = dx * dx + dy * dy;
+
+  if (lenSq === 0) {
+    return { lat: aLat, lng: aLng, distance: Math.hypot(x, y), t: 0 };
+  }
+
+  const t = Math.max(0, Math.min(1, (x * dx + y * dy) / lenSq));
+  const projLat = aLat + t * (bLat - aLat);
+  const projLng = aLng + t * (bLng - aLng);
+  const dist = Math.hypot(x - t * dx, y - t * dy);
+
+  return { lat: projLat, lng: projLng, distance: dist, t };
+};
+
+/**
+ * Finds closest segment and projection point on a polyline of [lat, lng] coordinates
+ */
+export const findClosestSegmentOnPolyline = (pLat, pLng, latlngs, startIndex = 0) => {
+  if (!latlngs || latlngs.length < 2) {
+    return { index: 0, projPoint: latlngs?.[0] || [pLat, pLng], minDistance: 0 };
+  }
+
+  let minDistance = Infinity;
+  let bestIndex = startIndex;
+  let bestProj = [latlngs[0][0], latlngs[0][1]];
+
+  const searchStart = Math.max(0, Math.min(startIndex, latlngs.length - 2));
+  for (let i = searchStart; i < latlngs.length - 1; i++) {
+    const [aLat, aLng] = latlngs[i];
+    const [bLat, bLng] = latlngs[i + 1];
+    const res = projectPointOnSegment(pLat, pLng, aLat, aLng, bLat, bLng);
+    if (res.distance < minDistance) {
+      minDistance = res.distance;
+      bestIndex = i;
+      bestProj = [res.lat, res.lng];
+      if (minDistance < 3) break;
+    }
+  }
+
+  return { index: bestIndex, projPoint: bestProj, minDistance };
+};
+
+/**
  * Calculates perpendicular minimum distance in meters from point to a polyline [lng, lat][]
  */
 export const calculateDistanceToPolyline = (pLat, pLng, coordinates) => {

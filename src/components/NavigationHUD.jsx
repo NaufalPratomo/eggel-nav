@@ -1,12 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
-  ArrowUp,
-  ArrowLeft,
-  ArrowRight,
-  ArrowUpLeft,
-  ArrowUpRight,
-  RotateCcw,
-  CheckCircle2,
   X,
   Radio,
   Clock,
@@ -16,64 +9,220 @@ import {
 import { formatDistance, formatDuration, formatTime24h, getTimeZoneLabel } from "../utils/geo";
 import { t } from "../utils/i18n";
 
-const getManeuverIcon = (modifier, type, theme = "light") => {
+/**
+ * Eye-catching automotive-grade SVG maneuver arrows.
+ * Replaces ambiguous text words ("turn right", "belok kanan") and standard emoji icons
+ * with bold, high-contrast vector arrows for instantaneous glance recognition.
+ */
+const ManeuverArrow = ({ modifier, type, theme = "light" }) => {
   const mod = (modifier || "").toLowerCase();
   const tType = (type || "").toLowerCase();
-  const primaryColor = theme === "dark" ? "text-[#d2fc15]" : "text-slate-900";
+  const isDark = theme === "dark";
 
-  if (mod.includes("uturn") || mod.includes("u-turn") || tType.includes("uturn")) {
-    return <RotateCcw className="w-9 h-9 text-amber-400" />;
-  }
-  if (mod.includes("sharp left") || mod.includes("left")) {
-    return mod.includes("slight") ? (
-      <ArrowUpLeft className={`w-9 h-9 ${primaryColor}`} />
-    ) : (
-      <ArrowLeft className={`w-9 h-9 ${primaryColor}`} />
+  // Accent color: Electric Lime (#d2fc15) on dark, athletic Carbon (#0f0f12) on light
+  const strokeColor = isDark ? "#d2fc15" : "#0f0f12";
+
+  // 1. Destination / Finish
+  if (tType.includes("arrive") || tType.includes("destination")) {
+    return (
+      <svg className="w-11 h-11" viewBox="0 0 48 48" fill="none">
+        <circle cx="24" cy="24" r="19" stroke={strokeColor} strokeWidth="3.5" strokeDasharray="3 3" />
+        <circle cx="24" cy="24" r="11" fill={strokeColor} />
+        <circle cx="24" cy="24" r="4.5" fill={isDark ? "#121215" : "#ffffff"} />
+      </svg>
     );
   }
-  if (mod.includes("sharp right") || mod.includes("right")) {
-    return mod.includes("slight") ? (
-      <ArrowUpRight className={`w-9 h-9 ${primaryColor}`} />
-    ) : (
-      <ArrowRight className={`w-9 h-9 ${primaryColor}`} />
+
+  // 2. U-Turn
+  if (mod.includes("uturn") || mod.includes("u-turn") || tType.includes("uturn")) {
+    return (
+      <svg className="w-11 h-11" viewBox="0 0 48 48" fill="none">
+        <path
+          d="M33 38V19C33 12.37 27.63 7 21 7C14.37 7 9 12.37 9 19V36"
+          stroke={strokeColor}
+          strokeWidth="4.5"
+          strokeLinecap="round"
+        />
+        <path
+          d="M3.5 30.5L9 36.5L14.5 30.5"
+          stroke={strokeColor}
+          strokeWidth="4.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
     );
   }
-  if (tType.includes("roundabout") || tType.includes("rotary")) {
-    return <RotateCcw className={`w-9 h-9 ${primaryColor}`} />;
-  }
-  if (tType.includes("arrive") || tType.includes("destination")) {
-    return <CheckCircle2 className="w-9 h-9 text-[#d2fc15]" />;
-  }
-  return <ArrowUp className={`w-9 h-9 ${primaryColor}`} />;
-};
 
-const formatManeuverBadge = (modifier, type, lang = "id") => {
-  const mod = (modifier || "").toLowerCase();
-  const tType = (type || "").toLowerCase();
-  const isEn = lang === "en";
+  // 3. Sharp Left
+  if (mod.includes("sharp left")) {
+    return (
+      <svg className="w-11 h-11" viewBox="0 0 48 48" fill="none">
+        <path
+          d="M34 38L24 16L12 28"
+          stroke={strokeColor}
+          strokeWidth="4.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M8 20L12 28L20 24"
+          stroke={strokeColor}
+          strokeWidth="4.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
 
-  if (mod.includes("uturn") || mod.includes("u-turn") || tType.includes("uturn")) {
-    return isEn ? "U-Turn" : "Putar Balik";
+  // 4. Sharp Right
+  if (mod.includes("sharp right")) {
+    return (
+      <svg className="w-11 h-11" viewBox="0 0 48 48" fill="none">
+        <path
+          d="M14 38L24 16L36 28"
+          stroke={strokeColor}
+          strokeWidth="4.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M40 20L36 28L28 24"
+          stroke={strokeColor}
+          strokeWidth="4.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
   }
-  if (mod.includes("sharp left")) return isEn ? "Sharp Left" : "Belok Kiri Tajam";
-  if (mod.includes("slight left")) return isEn ? "Slight Left" : "Serong Kiri";
-  if (mod.includes("left")) return isEn ? "Turn Left" : "Belok Kiri";
-  if (mod.includes("sharp right")) return isEn ? "Sharp Right" : "Belok Kanan Tajam";
-  if (mod.includes("slight right")) return isEn ? "Slight Right" : "Serong Kanan";
-  if (mod.includes("right")) return isEn ? "Turn Right" : "Belok Kanan";
-  if (tType.includes("arrive") || tType.includes("destination")) {
-    return isEn ? "Destination" : "Tujuan";
+
+  // 5. Turn Left (Smooth curved 90° arrow)
+  if (mod.includes("left") && !mod.includes("slight")) {
+    return (
+      <svg className="w-11 h-11" viewBox="0 0 48 48" fill="none">
+        <path
+          d="M33 39V24C33 16.27 26.73 10 19 10H10"
+          stroke={strokeColor}
+          strokeWidth="4.5"
+          strokeLinecap="round"
+        />
+        <path
+          d="M16.5 3.5L9 10L16.5 16.5"
+          stroke={strokeColor}
+          strokeWidth="4.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
   }
+
+  // 6. Turn Right (Smooth curved 90° arrow)
+  if (mod.includes("right") && !mod.includes("slight")) {
+    return (
+      <svg className="w-11 h-11" viewBox="0 0 48 48" fill="none">
+        <path
+          d="M15 39V24C15 16.27 21.27 10 29 10H38"
+          stroke={strokeColor}
+          strokeWidth="4.5"
+          strokeLinecap="round"
+        />
+        <path
+          d="M31.5 3.5L39 10L31.5 16.5"
+          stroke={strokeColor}
+          strokeWidth="4.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  // 7. Slight Left (45° fork/turn)
+  if (mod.includes("slight left")) {
+    return (
+      <svg className="w-11 h-11" viewBox="0 0 48 48" fill="none">
+        <path
+          d="M28 38V24L14 10"
+          stroke={strokeColor}
+          strokeWidth="4.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M23 9H13V19"
+          stroke={strokeColor}
+          strokeWidth="4.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  // 8. Slight Right (45° fork/turn)
+  if (mod.includes("slight right")) {
+    return (
+      <svg className="w-11 h-11" viewBox="0 0 48 48" fill="none">
+        <path
+          d="M20 38V24L34 10"
+          stroke={strokeColor}
+          strokeWidth="4.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M25 9H35V19"
+          stroke={strokeColor}
+          strokeWidth="4.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  // 9. Roundabout
   if (tType.includes("roundabout") || tType.includes("rotary")) {
-    return isEn ? "Roundabout" : "Bundaran";
+    return (
+      <svg className="w-11 h-11" viewBox="0 0 48 48" fill="none">
+        <path
+          d="M24 10C16.27 10 10 16.27 10 24C10 31.73 16.27 38 24 38C30.2 38 35.4 34 37.3 28"
+          stroke={strokeColor}
+          strokeWidth="4.5"
+          strokeLinecap="round"
+        />
+        <path
+          d="M32 23L38 28L43 23"
+          stroke={strokeColor}
+          strokeWidth="4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
   }
-  if (tType.includes("fork")) {
-    if (isEn) {
-      return mod.includes("left") ? "Keep Left" : "Keep Right";
-    }
-    return mod.includes("left") ? "Ambil Jalur Kiri" : "Ambil Jalur Kanan";
-  }
-  return isEn ? "Straight" : "Lurus";
+
+  // 10. Default: Straight ahead (Bold aerodynamic vertical arrow)
+  return (
+    <svg className="w-11 h-11" viewBox="0 0 48 48" fill="none">
+      <path
+        d="M24 38V12"
+        stroke={strokeColor}
+        strokeWidth="4.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M15 19L24 10L33 19"
+        stroke={strokeColor}
+        strokeWidth="4.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 };
 
 export default function NavigationHUD({
@@ -107,7 +256,7 @@ export default function NavigationHUD({
 
   return (
     <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-3.5 pt-safe pb-safe z-[1000]">
-      {/* Top Banner: Next Maneuver */}
+      {/* Top Banner: Hero Maneuver Arrow & Big Distance (No clutter text words) */}
       <div
         className={`pointer-events-auto rounded-2xl p-4 shadow-xl border max-w-lg mx-auto w-full transition-colors ${
           isDark
@@ -116,36 +265,30 @@ export default function NavigationHUD({
         }`}
       >
         <div className="flex items-center gap-3.5">
+          {/* Eye-catching Hero Arrow Icon */}
           <div
-            className={`p-2.5 rounded-xl flex items-center justify-center shrink-0 border ${
+            className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border transition-all ${
               isDark
-                ? "bg-[#222228] border-[#2e2e38]"
-                : "bg-slate-100 border-slate-200 text-slate-800"
+                ? "bg-[#1f1f25] border-[#d2fc15]/40 shadow-[0_0_18px_rgba(210,252,21,0.25)]"
+                : "bg-slate-100 border-slate-200 shadow-sm"
             }`}
           >
-            {getManeuverIcon(currentStep?.modifier, currentStep?.type, theme)}
+            <ManeuverArrow
+              modifier={currentStep?.modifier}
+              type={currentStep?.type}
+              theme={theme}
+            />
           </div>
+
+          {/* Large Distance & Street Name (Clean, Word-Free) */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-baseline gap-2">
-              <span
-                className={`text-3xl font-black tracking-tight ${
-                  isDark ? "text-white" : "text-slate-900"
-                }`}
-              >
+            <div className="text-3xl sm:text-4xl font-black tracking-tight leading-none">
+              <span className={isDark ? "text-white" : "text-slate-900"}>
                 {formatDistance(distanceToNextStep)}
-              </span>
-              <span
-                className={`text-xs font-bold px-2 py-0.5 rounded-lg border ${
-                  isDark
-                    ? "bg-[#222228] text-[#d2fc15] border-[#2e2e38]"
-                    : "bg-slate-100 text-slate-700 border-slate-200"
-                }`}
-              >
-                {formatManeuverBadge(currentStep?.modifier, currentStep?.type, lang)}
               </span>
             </div>
             <p
-              className={`text-xs font-medium truncate mt-0.5 ${
+              className={`text-xs font-semibold truncate mt-1.5 ${
                 isDark ? "text-zinc-300" : "text-slate-600"
               }`}
             >
@@ -154,7 +297,7 @@ export default function NavigationHUD({
           </div>
         </div>
 
-        {/* Live Smartwatch Alert Badge */}
+        {/* Live Smartwatch Alert Status */}
         {lastAlertSent && (
           <div
             className={`mt-3 pt-2.5 border-t flex items-center justify-between text-xs ${
@@ -166,8 +309,8 @@ export default function NavigationHUD({
               {t("alertSentBadge", lang)}
             </span>
             <span
-              className={`font-mono text-[11px] truncate max-w-[200px] ${
-                isDark ? "text-zinc-300" : "text-slate-600"
+              className={`font-mono text-[11px] truncate max-w-[200px] font-bold ${
+                isDark ? "text-zinc-200" : "text-slate-700"
               }`}
             >
               {lastAlertSent}

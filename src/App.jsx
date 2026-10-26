@@ -108,6 +108,7 @@ export default function App() {
   const isNavigatingRef = useRef(false);
   const currentStepIndexRef = useRef(0);
   const lastRerouteTimeRef = useRef(0);
+  const lastPreviewRouteCalcTimeRef = useRef(0);
   const alertTrackerRef = useRef({
     stepIndex: 0,
     alert1Sent: false,
@@ -433,6 +434,23 @@ export default function App() {
           if (destinationRef.current && !routeRef.current) {
             calculateRouteTo(newPos, destinationRef.current);
           }
+        } else if (!isNavigatingRef.current && destinationRef.current && routeRef.current) {
+          // If user moves in preview mode (> 20m from route starting coordinate),
+          // auto-recalculate route from the current real-time user location
+          const startCoords = routeRef.current.geometry?.coordinates?.[0];
+          if (startCoords) {
+            const distFromRouteStart = calculateHaversineDistance(
+              newPos.lat,
+              newPos.lng,
+              startCoords[1], // lat
+              startCoords[0]  // lng
+            );
+            const now = Date.now();
+            if (distFromRouteStart > 20 && now - lastPreviewRouteCalcTimeRef.current >= 3000) {
+              lastPreviewRouteCalcTimeRef.current = now;
+              calculateRouteTo(newPos, destinationRef.current);
+            }
+          }
         }
 
         // Live turn-by-turn processing if navigating
@@ -505,18 +523,43 @@ export default function App() {
 
   // Start Navigation
   const handleStartNavigation = async () => {
-    if (!route || !route.steps || route.steps.length === 0) return;
+    let activeRoute = route;
+    if (!activeRoute || !activeRoute.steps || activeRoute.steps.length === 0) return;
+
+    // If user moved > 20m from initial preview route start, refresh route immediately
+    if (userPosition && destination && activeRoute.geometry?.coordinates?.[0]) {
+      const startCoords = activeRoute.geometry.coordinates[0];
+      const distFromStart = calculateHaversineDistance(
+        userPosition.lat,
+        userPosition.lng,
+        startCoords[1],
+        startCoords[0]
+      );
+      if (distFromStart > 20) {
+        try {
+          const freshRoute = await fetchRoute(
+            { lat: userPosition.lat, lng: userPosition.lng },
+            { lat: destination.lat, lng: destination.lng }
+          );
+          setRoute(freshRoute);
+          routeRef.current = freshRoute;
+          activeRoute = freshRoute;
+        } catch (e) {
+          console.warn("Using existing route as fallback:", e);
+        }
+      }
+    }
 
     setIsNavigating(true);
     isNavigatingRef.current = true;
-    let startStep = route.steps.length > 1 ? 1 : 0;
-    if (userPosition && route.steps.length > 2) {
-      for (let i = 1; i < route.steps.length; i++) {
+    let startStep = activeRoute.steps.length > 1 ? 1 : 0;
+    if (userPosition && activeRoute.steps.length > 2) {
+      for (let i = 1; i < activeRoute.steps.length; i++) {
         const d = calculateHaversineDistance(
           userPosition.lat,
           userPosition.lng,
-          route.steps[i].location.lat,
-          route.steps[i].location.lng
+          activeRoute.steps[i].location.lat,
+          activeRoute.steps[i].location.lng
         );
         if (d > 18) {
           startStep = i;

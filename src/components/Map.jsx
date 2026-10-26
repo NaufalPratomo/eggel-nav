@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useCallback } from "react";
 import L from "leaflet";
+import { findClosestSegmentOnPolyline } from "../utils/geo";
 
 // Custom user marker styled in Eggel Active sports branding (Carbon black + Electric Lime)
 const createUserIcon = (heading = 0) => {
@@ -77,7 +78,14 @@ export default function Map({
   const tileLayerRef = useRef(null);
   const userMarkerRef = useRef(null);
   const destMarkerRef = useRef(null);
-  const routeLayerRef = useRef(null);
+
+  // Dynamic Route Layers
+  const activeRouteLayerRef = useRef(null);
+  const glowLayerRef = useRef(null);
+  const traveledRouteLayerRef = useRef(null);
+  const fullCoordsRef = useRef([]);
+  const progressIndexRef = useRef(0);
+
   const initialCenteredRef = useRef(false);
   const onMapClickRef = useRef(onMapClick);
 
@@ -134,12 +142,156 @@ export default function Map({
       tileLayerRef.current = null;
       userMarkerRef.current = null;
       destMarkerRef.current = null;
-      routeLayerRef.current = null;
+      activeRouteLayerRef.current = null;
+      glowLayerRef.current = null;
+      traveledRouteLayerRef.current = null;
       initialCenteredRef.current = false;
     };
   }, []);
 
-  // Update user marker
+  // Real-time dynamic polyline update helper
+  const updatePolylines = useCallback(
+    (pos, forceRecalculateProgress = false) => {
+      const map = mapInstanceRef.current;
+      const fullCoords = fullCoordsRef.current;
+      if (!map) return;
+
+      if (!fullCoords || fullCoords.length === 0) {
+        if (activeRouteLayerRef.current) activeRouteLayerRef.current.setLatLngs([]);
+        if (glowLayerRef.current) glowLayerRef.current.setLatLngs([]);
+        if (traveledRouteLayerRef.current) traveledRouteLayerRef.current.setLatLngs([]);
+        return;
+      }
+
+      const isDark = theme === "dark";
+      const activeColor = isDark ? "#d2fc15" : "#0f0f12";
+      const glowColor = isDark ? "#d2fc15" : "#3b82f6";
+      const traveledColor = isDark ? "#3f3f46" : "#94a3b8";
+
+      // Ensure layers exist
+      if (!traveledRouteLayerRef.current) {
+        traveledRouteLayerRef.current = L.polyline([], {
+          color: traveledColor,
+          weight: 4.5,
+          opacity: 0.45,
+          lineCap: "round",
+          lineJoin: "round",
+        }).addTo(map);
+      } else {
+        traveledRouteLayerRef.current.setStyle({ color: traveledColor });
+      }
+
+      if (!glowLayerRef.current) {
+        glowLayerRef.current = L.polyline([], {
+          color: glowColor,
+          weight: 12,
+          opacity: isDark ? 0.22 : 0.12,
+          lineCap: "round",
+          lineJoin: "round",
+        }).addTo(map);
+      } else {
+        glowLayerRef.current.setStyle({
+          color: glowColor,
+          opacity: isDark ? 0.22 : 0.12,
+        });
+      }
+
+      if (!activeRouteLayerRef.current) {
+        activeRouteLayerRef.current = L.polyline([], {
+          color: activeColor,
+          weight: 6.5,
+          opacity: 0.98,
+          lineCap: "round",
+          lineJoin: "round",
+        }).addTo(map);
+      } else {
+        activeRouteLayerRef.current.setStyle({ color: activeColor });
+      }
+
+      if (isNavigating && pos) {
+        if (forceRecalculateProgress) {
+          progressIndexRef.current = 0;
+        }
+
+        // Find nearest segment ahead of current progress
+        const { index, projPoint } = findClosestSegmentOnPolyline(
+          pos.lat,
+          pos.lng,
+          fullCoords,
+          progressIndexRef.current
+        );
+
+        // Advance progress smoothly (never jump backwards during active navigation)
+        progressIndexRef.current = Math.max(progressIndexRef.current, index);
+        const currIdx = progressIndexRef.current;
+
+        // Active remaining path: directly starts from user position -> projection point -> destination
+        const remainingCoords = [
+          [pos.lat, pos.lng],
+          projPoint,
+          ...fullCoords.slice(currIdx + 1),
+        ];
+
+        // Traveled path: origin -> projection point -> user position
+        const completedCoords = [
+          ...fullCoords.slice(0, currIdx + 1),
+          projPoint,
+          [pos.lat, pos.lng],
+        ];
+
+        activeRouteLayerRef.current.setLatLngs(remainingCoords);
+        glowLayerRef.current.setLatLngs(remainingCoords);
+        traveledRouteLayerRef.current.setLatLngs(completedCoords);
+      } else if (!isNavigating) {
+        // Preview mode: active line connects smoothly from user position to route
+        let previewCoords = fullCoords;
+        if (pos) {
+          const { index, projPoint } = findClosestSegmentOnPolyline(pos.lat, pos.lng, fullCoords, 0);
+          // If within 150m of route, snap start to user
+          previewCoords = [
+            [pos.lat, pos.lng],
+            projPoint,
+            ...fullCoords.slice(index + 1),
+          ];
+        }
+
+        activeRouteLayerRef.current.setLatLngs(previewCoords);
+        glowLayerRef.current.setLatLngs(previewCoords);
+        traveledRouteLayerRef.current.setLatLngs([]);
+      }
+    },
+    [isNavigating, theme]
+  );
+
+  // Sync routeGeometry changes
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (!routeGeometry || !routeGeometry.coordinates || routeGeometry.coordinates.length === 0) {
+      fullCoordsRef.current = [];
+      progressIndexRef.current = 0;
+      updatePolylines(userPosition, true);
+      return;
+    }
+
+    // GeoJSON coordinates are [lng, lat], Leaflet polyline expects [lat, lng]
+    const latlngs = routeGeometry.coordinates.map(([lng, lat]) => [lat, lng]);
+    fullCoordsRef.current = latlngs;
+    progressIndexRef.current = 0;
+
+    updatePolylines(userPosition, true);
+
+    // Fit map bounds to show full route if not currently navigating
+    if (!isNavigating && latlngs.length > 0) {
+      const bounds = L.polyline(latlngs).getBounds();
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [60, 60] });
+      }
+    }
+  }, [routeGeometry, isNavigating, updatePolylines, userPosition]);
+
+  // Update user marker & sync real-time progress polyline
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !userPosition) return;
@@ -163,7 +315,10 @@ export default function Map({
     } else if (isNavigating) {
       map.panTo(latlng, { animate: true, duration: 0.8 });
     }
-  }, [userPosition, isNavigating]);
+
+    // Real-time update of route progress line following user's exact coordinates
+    updatePolylines(userPosition, false);
+  }, [userPosition, isNavigating, updatePolylines]);
 
   // Update destination marker
   useEffect(() => {
@@ -186,45 +341,13 @@ export default function Map({
     }
   }, [destination]);
 
-  // Update route geometry polyline
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
-
-    if (routeLayerRef.current) {
-      map.removeLayer(routeLayerRef.current);
-      routeLayerRef.current = null;
-    }
-
-    if (!routeGeometry || !routeGeometry.coordinates) return;
-
-    // GeoJSON coordinates are [lng, lat], Leaflet polyline expects [lat, lng]
-    const latlngs = routeGeometry.coordinates.map(([lng, lat]) => [lat, lng]);
-
-    const routeColor = theme === "dark" ? "#d2fc15" : "#0f0f12";
-
-    const polyline = L.polyline(latlngs, {
-      color: routeColor,
-      weight: 6,
-      opacity: 0.95,
-      lineCap: "round",
-      lineJoin: "round",
-    }).addTo(map);
-
-    routeLayerRef.current = polyline;
-
-    // Fit map bounds to show full route if not currently navigating
-    if (!isNavigating && latlngs.length > 0) {
-      map.fitBounds(polyline.getBounds(), { padding: [60, 60] });
-    }
-  }, [routeGeometry, isNavigating, theme]);
-
   // Synchronize Leaflet size when theme changes or window resizes
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
     map.invalidateSize();
-  }, [theme]);
+    updatePolylines(userPosition, false);
+  }, [theme, updatePolylines, userPosition]);
 
   return (
     <div className={`w-full h-full ${theme === "dark" ? "dark-map" : ""}`}>

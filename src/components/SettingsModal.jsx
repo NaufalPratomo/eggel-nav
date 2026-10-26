@@ -30,8 +30,8 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
 
     const isEn = language === "en";
     const message = isEn
-      ? `[TEST] TURN LEFT (100m)\nMain Street Avenue\n(Watch Vibration Test: ${now})`
-      : `[TEST] BELOK KIRI (100m)\nJl. Margonda Raya\n(Tes Getar Jam: ${now})`;
+      ? `[TEST 100m]  ◄◄━━━━\nMain Street Avenue\n(Watch Vibration Test: ${now})`
+      : `[TEST 100m]  ◄◄━━━━\nJl. Margonda Raya\n(Tes Getar Jam: ${now})`;
 
     const result = await sendTelegramAlert(botToken, chatId, message);
     setTesting(false);

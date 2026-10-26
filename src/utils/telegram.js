@@ -30,8 +30,61 @@ export const sendTelegramAlert = async (token, chatId, text) => {
 };
 
 /**
- * Format instructions specifically tailored for small round smartwatch screens:
- * [120m] BELOK KIRI
+ * Universal high-contrast direction arrows (Basic Multilingual Plane geometric symbols).
+ * Avoids Unicode Emoji icons (no missing tofu glyphs [?] on RTOS smartwatches)
+ * and eliminates word clutter ("Turn Right" / "Belok Kanan") for instant glance recognition.
+ */
+export const getManeuverArrowText = (modifier, maneuverType) => {
+  const mod = (modifier || "").toLowerCase();
+  const type = (maneuverType || "").toLowerCase();
+
+  // U-Turn
+  if (mod.includes("uturn") || mod.includes("u-turn") || type.includes("uturn")) {
+    return "◄━━━┓";
+  }
+  // Sharp Left
+  if (mod.includes("sharp left")) {
+    return "◄◄──┘";
+  }
+  // Slight Left
+  if (mod.includes("slight left")) {
+    return "↖↖━━━";
+  }
+  // Turn Left
+  if (mod.includes("left")) {
+    return "◄◄━━━━";
+  }
+  // Sharp Right
+  if (mod.includes("sharp right")) {
+    return "└──►►";
+  }
+  // Slight Right
+  if (mod.includes("slight right")) {
+    return "━━━↗↗";
+  }
+  // Turn Right
+  if (mod.includes("right")) {
+    return "━━━━►►";
+  }
+  // Roundabout / Rotary
+  if (type.includes("roundabout") || type.includes("rotary")) {
+    return "↺ ↺ ↺";
+  }
+  // Arrived / Destination
+  if (type.includes("arrive") || type.includes("destination")) {
+    return "★ ★ ★";
+  }
+  // Fork / Ramp
+  if (type.includes("fork")) {
+    return mod.includes("left") ? "◄◄━━━━" : "━━━━►►";
+  }
+  // Straight
+  return "▲ ▲ ▲";
+};
+
+/**
+ * Format instructions specifically tailored for glanceable smartwatch displays:
+ * [120m]  ━━━━►►
  * Jl. Margonda Raya
  */
 export const formatManeuverMessage = (
@@ -43,50 +96,18 @@ export const formatManeuverMessage = (
   lang = "id"
 ) => {
   const isEn = lang === "en";
-  let actionText = isEn ? "GO STRAIGHT" : "LURUS";
-
-  const mod = (modifier || "").toLowerCase();
-  const type = (maneuverType || "").toLowerCase();
-
-  // 1. Check U-turn first (handles 'uturn' and 'u-turn')
-  if (mod.includes("uturn") || mod.includes("u-turn") || type.includes("uturn")) {
-    actionText = isEn ? "U-TURN" : "PUTAR BALIK";
-  } else if (mod.includes("sharp left")) {
-    actionText = isEn ? "SHARP LEFT" : "BELOK KIRI TAJAM";
-  } else if (mod.includes("slight left")) {
-    actionText = isEn ? "SLIGHT LEFT" : "SERONG KIRI";
-  } else if (mod.includes("left")) {
-    actionText = isEn ? "TURN LEFT" : "BELOK KIRI";
-  } else if (mod.includes("sharp right")) {
-    actionText = isEn ? "SHARP RIGHT" : "BELOK KANAN TAJAM";
-  } else if (mod.includes("slight right")) {
-    actionText = isEn ? "SLIGHT RIGHT" : "SERONG KANAN";
-  } else if (mod.includes("right")) {
-    actionText = isEn ? "TURN RIGHT" : "BELOK KANAN";
-  } else if (type.includes("roundabout") || type.includes("rotary")) {
-    actionText = isEn ? "ROUNDABOUT" : "BUNDARAN";
-  } else if (type.includes("arrive") || type.includes("destination")) {
-    actionText = isEn ? "ARRIVED AT DESTINATION" : "TIBA DI TUJUAN";
-  } else if (type.includes("fork")) {
-    if (isEn) {
-      actionText = mod.includes("left") ? "KEEP LEFT" : "KEEP RIGHT";
-    } else {
-      actionText = mod.includes("left") ? "AMBIL JALUR KIRI" : "AMBIL JALUR KANAN";
-    }
-  }
+  const arrow = getManeuverArrowText(modifier, maneuverType);
 
   const distText =
     distanceMeters < 1000
       ? `${Math.round(distanceMeters)}m`
       : `${(distanceMeters / 1000).toFixed(1)}km`;
+
   const defaultStreet = isEn ? "Next Street" : "Jalan Berikutnya";
   const cleanStreet =
     streetName && streetName.trim().length > 0 ? streetName.trim() : defaultStreet;
 
-  if (isFinal) {
-    const finalSuffix = isEn ? " NOW" : " SEKARANG";
-    return `[${distText}] ${actionText}${finalSuffix}\n${cleanStreet}`;
-  }
+  const urgentMark = isFinal ? " ‼" : "";
 
-  return `[${distText}] ${actionText}\n${cleanStreet}`;
+  return `[${distText}]  ${arrow}${urgentMark}\n${cleanStreet}`;
 };
