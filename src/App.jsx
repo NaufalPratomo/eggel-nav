@@ -598,32 +598,44 @@ export default function App() {
         theme={theme}
       />
 
-      {/* Top Header Controls (inspired by 4427554.jpg transit app) */}
+      {/* Top Header Controls (Clean, minimal, solid transit header) */}
       {!isNavigating && (
         <div className="absolute top-0 inset-x-0 p-3 pt-safe z-[1000] pointer-events-none">
-          <div className="pointer-events-auto max-w-lg mx-auto bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 text-white px-4 py-3 rounded-3xl shadow-xl flex items-center justify-between gap-3 border border-indigo-400/30">
+          <div
+            className={`pointer-events-auto max-w-lg mx-auto px-4 py-3 rounded-2xl shadow-md flex items-center justify-between gap-3 border transition-colors ${
+              theme === "dark"
+                ? "bg-slate-900 border-slate-800 text-white"
+                : "bg-white border-slate-200 text-slate-900"
+            }`}
+          >
             {/* Logo / GPS status */}
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-inner">
-                <Compass className="w-5 h-5 animate-[spin_12s_linear_infinite]" />
+              <div
+                className={`w-8 h-8 rounded-xl flex items-center justify-center border transition-colors ${
+                  theme === "dark"
+                    ? "bg-slate-800 border-slate-700 text-slate-300"
+                    : "bg-slate-100 border-slate-200 text-slate-700"
+                }`}
+              >
+                <Compass className="w-4 h-4" />
               </div>
               <div>
-                <h1 className="text-sm font-black tracking-wide leading-none">{t("appName", lang)}</h1>
-                <div className="flex items-center gap-1.5 text-[10px] mt-1">
+                <h1 className="text-sm font-bold tracking-tight leading-none">{t("appName", lang)}</h1>
+                <div className="flex items-center gap-1.5 text-[11px] mt-1">
                   {gpsStatus === "ready" ? (
                     <>
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="text-emerald-100 font-semibold">{t("gpsReady", lang)}</span>
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                      <span className="font-medium text-slate-600 dark:text-slate-300">{t("gpsReady", lang)}</span>
                     </>
                   ) : gpsStatus === "locating" ? (
                     <>
-                      <span className="w-2 h-2 rounded-full bg-amber-300 animate-pulse" />
-                      <span className="text-amber-100 font-medium">{t("gpsLocating", lang)}</span>
+                      <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                      <span className="font-medium text-slate-600 dark:text-slate-300">{t("gpsLocating", lang)}</span>
                     </>
                   ) : (
                     <>
-                      <span className="w-2 h-2 rounded-full bg-rose-400" />
-                      <span className="text-rose-100 font-medium truncate max-w-[90px]">
+                      <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                      <span className="font-medium text-rose-600 dark:text-rose-400 truncate max-w-[90px]">
                         {t("gpsError", lang)}
                       </span>
                     </>
@@ -636,7 +648,7 @@ export default function App() {
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setIsSearchOpen(true)}
-                className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-2xl backdrop-blur-md border border-white/25 text-xs font-bold transition active:scale-95 shadow-sm"
+                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-xl text-xs font-semibold transition active:scale-95 shadow-sm"
               >
                 <Search className="w-3.5 h-3.5" />
                 <span>{t("searchBtn", lang)}</span>
@@ -644,23 +656,31 @@ export default function App() {
 
               <button
                 onClick={toggleTheme}
-                className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-2xl backdrop-blur-md border border-white/25 transition active:scale-95 shadow-sm"
+                className={`p-2 rounded-xl border transition active:scale-95 ${
+                  theme === "dark"
+                    ? "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300"
+                    : "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700"
+                }`}
                 aria-label="Toggle Theme"
                 title={theme === "dark" ? t("lightMode", lang) : t("darkMode", lang)}
               >
                 {theme === "dark" ? (
                   <Sun className="w-4 h-4 text-amber-300" />
                 ) : (
-                  <Moon className="w-4 h-4 text-white" />
+                  <Moon className="w-4 h-4 text-slate-700" />
                 )}
               </button>
 
               <button
                 onClick={() => setIsSettingsOpen(true)}
-                className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-2xl backdrop-blur-md border border-white/25 transition active:scale-95 shadow-sm"
+                className={`p-2 rounded-xl border transition active:scale-95 ${
+                  theme === "dark"
+                    ? "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300"
+                    : "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700"
+                }`}
                 aria-label={t("settingsTitle", lang)}
               >
-                <SettingsIcon className="w-4 h-4 text-white" />
+                <SettingsIcon className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -671,10 +691,10 @@ export default function App() {
       {!isNavigating && (
         <button
           onClick={handleCenterUser}
-          className={`absolute right-4 bottom-28 z-[1000] p-3 rounded-2xl shadow-xl active:scale-95 transition border ${
+          className={`absolute right-4 bottom-24 z-[1000] p-3 rounded-xl shadow-md active:scale-95 transition border ${
             theme === "dark"
-              ? "bg-slate-900/90 backdrop-blur-md border-slate-700/60 text-blue-400 hover:bg-slate-800"
-              : "bg-white/95 backdrop-blur-md border-slate-200/80 text-indigo-600 hover:bg-slate-50"
+              ? "bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800"
+              : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
           }`}
           aria-label={t("recenterMap", lang)}
         >
@@ -684,41 +704,37 @@ export default function App() {
 
       {/* GPS Error Notification Banner */}
       {gpsErrorMsg && !isNavigating && (
-        <div className="absolute top-20 inset-x-4 z-[1000] max-w-md mx-auto bg-amber-500/90 text-white p-3 rounded-2xl text-xs flex items-center gap-2.5 shadow-xl backdrop-blur-sm border border-amber-400">
+        <div className="absolute top-20 inset-x-4 z-[1000] max-w-md mx-auto bg-amber-500 text-white p-3 rounded-xl text-xs flex items-center gap-2.5 shadow-md border border-amber-600">
           <AlertTriangle className="w-5 h-5 shrink-0" />
           <span className="flex-1 font-medium">{gpsErrorMsg}</span>
         </div>
       )}
 
-      {/* Bottom Route Preview Card (when destination selected & not navigating, inspired by 4427554.jpg) */}
+      {/* Bottom Route Preview Card (when destination selected & not navigating) */}
       {!isNavigating && destination && (
         <div className="absolute bottom-4 inset-x-4 z-[1000] max-w-lg mx-auto">
           <div
-            className={`rounded-3xl p-4 shadow-2xl border transition-all ${
+            className={`rounded-2xl p-4 shadow-xl border transition-colors ${
               theme === "dark"
-                ? "bg-slate-900/95 text-white border-slate-800"
-                : "bg-white/95 text-slate-800 border-slate-100"
+                ? "bg-slate-900 text-white border-slate-800"
+                : "bg-white text-slate-900 border-slate-200"
             }`}
           >
             {/* Header info */}
             <div
               className={`flex items-center justify-between pb-2.5 border-b ${
-                theme === "dark" ? "border-slate-800" : "border-slate-100"
+                theme === "dark" ? "border-slate-800" : "border-slate-200"
               }`}
             >
-              <span
-                className={`text-[11px] font-bold uppercase tracking-wider ${
-                  theme === "dark" ? "text-indigo-400" : "text-indigo-600"
-                }`}
-              >
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
                 {t("routeTrip", lang)}
               </span>
               <button
                 onClick={handleClearDestination}
-                className={`p-1.5 rounded-xl transition ${
+                className={`p-1.5 rounded-lg transition ${
                   theme === "dark"
                     ? "text-slate-400 hover:text-white hover:bg-slate-800"
-                    : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
                 }`}
                 aria-label="Hapus Tujuan"
               >
@@ -726,22 +742,24 @@ export default function App() {
               </button>
             </div>
 
-            {/* From - To visual cards like 4427554.jpg */}
+            {/* From - To cards */}
             <div className="space-y-2 py-2.5">
               {/* Origin card */}
               <div
-                className={`flex items-center gap-3 p-2.5 rounded-2xl border transition ${
+                className={`flex items-center gap-3 p-2.5 rounded-xl border ${
                   theme === "dark"
                     ? "bg-slate-800/80 border-slate-700/60"
-                    : "bg-slate-50 border-slate-200/60"
+                    : "bg-slate-50 border-slate-200"
                 }`}
               >
-                <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-950/80 flex items-center justify-center shrink-0">
-                  <div className="w-3 h-3 rounded-full bg-blue-600 ring-4 ring-blue-300/40 animate-pulse" />
+                <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-950 flex items-center justify-center shrink-0">
+                  <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">{t("fromLabel", lang)}</span>
-                  <p className="text-xs font-semibold truncate text-slate-700 dark:text-slate-200">
+                  <span className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 block">
+                    {t("fromLabel", lang)}
+                  </span>
+                  <p className="text-xs font-semibold truncate text-slate-800 dark:text-slate-200">
                     {t("myLocation", lang)}
                   </p>
                 </div>
@@ -749,20 +767,20 @@ export default function App() {
 
               {/* Destination card */}
               <div
-                className={`flex items-center gap-3 p-2.5 rounded-2xl border transition ${
+                className={`flex items-center gap-3 p-2.5 rounded-xl border ${
                   theme === "dark"
                     ? "bg-slate-800/80 border-slate-700/60"
-                    : "bg-emerald-50/70 border-emerald-200/60"
+                    : "bg-slate-50 border-slate-200"
                 }`}
               >
-                <div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-950/80 flex items-center justify-center shrink-0 text-emerald-600 dark:text-emerald-400">
-                  <MapPin className="w-4 h-4" />
+                <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center shrink-0 text-emerald-600 dark:text-emerald-400">
+                  <MapPin className="w-3.5 h-3.5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block">
+                  <span className="text-[10px] uppercase font-semibold text-emerald-600 dark:text-emerald-400 block">
                     {t("toLabel", lang)}
                   </span>
-                  <p className="text-xs font-bold truncate text-slate-900 dark:text-white">
+                  <p className="text-xs font-semibold truncate text-slate-900 dark:text-white">
                     {destination.name}
                   </p>
                 </div>
@@ -771,47 +789,41 @@ export default function App() {
 
             {/* Route Stats (Distance & Duration) */}
             {isRouting ? (
-              <div className="flex items-center justify-center gap-2 py-3 text-xs text-slate-400 font-medium">
+              <div className="flex items-center justify-center gap-2 py-3 text-xs text-slate-500 font-medium">
                 <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
                 <span>{t("calculatingRoute", lang)}</span>
               </div>
             ) : routeError ? (
-              <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 p-2.5 rounded-xl text-xs text-rose-600 dark:text-rose-300 font-medium">
+              <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 p-2.5 rounded-xl text-xs text-rose-600 dark:text-rose-300 font-medium">
                 {routeError}
               </div>
             ) : route ? (
               <div className="grid grid-cols-2 gap-2.5 py-1">
                 <div
-                  className={`p-2.5 rounded-2xl border ${
+                  className={`p-2.5 rounded-xl border ${
                     theme === "dark"
-                      ? "bg-slate-800/70 border-slate-700/60"
-                      : "bg-slate-50 border-slate-200/60"
+                      ? "bg-slate-800/70 border-slate-700"
+                      : "bg-slate-50 border-slate-200"
                   }`}
                 >
-                  <span className="text-[10px] text-slate-400 uppercase font-bold">{t("totalDistance", lang)}</span>
-                  <p className="text-lg font-black text-slate-900 dark:text-white mt-0.5">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">
+                    {t("totalDistance", lang)}
+                  </span>
+                  <p className="text-base font-extrabold text-slate-900 dark:text-white mt-0.5">
                     {formatDistance(route.distance)}
                   </p>
                 </div>
                 <div
-                  className={`p-2.5 rounded-2xl border ${
+                  className={`p-2.5 rounded-xl border ${
                     theme === "dark"
-                      ? "bg-slate-800/70 border-slate-700/60"
-                      : "bg-indigo-50/70 border-indigo-100"
+                      ? "bg-slate-800/70 border-slate-700"
+                      : "bg-slate-50 border-slate-200"
                   }`}
                 >
-                  <span
-                    className={`text-[10px] uppercase font-bold ${
-                      theme === "dark" ? "text-indigo-400" : "text-indigo-600"
-                    }`}
-                  >
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold">
                     {t("estimatedTime", lang)}
                   </span>
-                  <p
-                    className={`text-lg font-black mt-0.5 ${
-                      theme === "dark" ? "text-indigo-400" : "text-indigo-600"
-                    }`}
-                  >
+                  <p className="text-base font-extrabold text-indigo-600 dark:text-indigo-400 mt-0.5">
                     {formatDuration(route.duration, lang)}
                   </p>
                 </div>
@@ -822,10 +834,10 @@ export default function App() {
             <div className="flex items-center gap-2.5 pt-2">
               <button
                 onClick={handleClearDestination}
-                className={`px-4 py-3 text-xs font-bold rounded-2xl transition active:scale-95 border ${
+                className={`px-4 py-2.5 text-xs font-semibold rounded-xl transition active:scale-95 border ${
                   theme === "dark"
                     ? "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
-                    : "bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-200"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200"
                 }`}
               >
                 {t("cancelBtn", lang)}
@@ -834,9 +846,9 @@ export default function App() {
               <button
                 disabled={isRouting || !route}
                 onClick={handleStartNavigation}
-                className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 text-white text-sm font-bold rounded-2xl shadow-lg shadow-indigo-500/25 transition active:scale-95"
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-sm transition active:scale-95"
               >
-                <Navigation className="w-4 h-4" />
+                <Navigation className="w-3.5 h-3.5" />
                 <span>{t("startNavBtn", lang)}</span>
               </button>
             </div>
@@ -848,10 +860,10 @@ export default function App() {
       {!isNavigating && !destination && (
         <div className="absolute bottom-6 inset-x-4 z-[1000] max-w-sm mx-auto pointer-events-none">
           <div
-            className={`backdrop-blur-md border text-xs py-2.5 px-4 rounded-2xl text-center shadow-lg transition-all ${
+            className={`border text-xs py-2 px-3 rounded-xl text-center shadow-md transition-colors ${
               theme === "dark"
-                ? "bg-slate-900/85 border-slate-700/60 text-slate-300"
-                : "bg-white/95 border-slate-200 text-slate-600"
+                ? "bg-slate-900 border-slate-800 text-slate-300"
+                : "bg-white border-slate-200 text-slate-600"
             }`}
           >
             {t("mapTapHint", lang)}

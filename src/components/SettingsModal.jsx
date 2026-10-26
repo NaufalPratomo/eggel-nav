@@ -64,7 +64,7 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
 
   return (
     <div className="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 text-white w-full max-w-md rounded-3xl p-5 shadow-2xl space-y-4">
+      <div className="bg-slate-900 border border-slate-800 text-white w-full max-w-md rounded-2xl p-5 shadow-xl space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
           <div className="flex items-center gap-2">
@@ -87,13 +87,13 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
               <Globe className="w-3.5 h-3.5 text-indigo-400" />
               {t("languageLabel", language)}
             </label>
-            <div className="grid grid-cols-2 gap-2 bg-slate-800/60 p-1.5 rounded-2xl border border-slate-700/60">
+            <div className="grid grid-cols-2 gap-2 bg-slate-800/60 p-1.5 rounded-xl border border-slate-700/60">
               <button
                 type="button"
                 onClick={() => setLanguage("id")}
-                className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 ${
                   language === "id"
-                    ? "bg-indigo-600 text-white shadow-md"
+                    ? "bg-indigo-600 text-white shadow-sm"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
@@ -103,9 +103,9 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
               <button
                 type="button"
                 onClick={() => setLanguage("en")}
-                className={`py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 ${
                   language === "en"
-                    ? "bg-indigo-600 text-white shadow-md"
+                    ? "bg-indigo-600 text-white shadow-sm"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
@@ -177,9 +177,9 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
             <button
               onClick={handleTestVibration}
               disabled={testing}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-400 font-semibold rounded-2xl transition active:scale-95 disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-200 font-semibold rounded-xl transition active:scale-95 disabled:opacity-50"
             >
-              <Bell className="w-4 h-4" />
+              <Bell className="w-4 h-4 text-indigo-400" />
               {testing ? t("testingVibration", language) : t("testVibrationBtn", language)}
             </button>
 
@@ -205,7 +205,7 @@ function SettingsForm({ settings, onClose, onSaveSettings }) {
           </button>
           <button
             onClick={handleSave}
-            className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm shadow-md transition active:scale-95"
+            className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm shadow-sm transition active:scale-95"
           >
             {t("saveSettingsBtn", language)}
           </button>

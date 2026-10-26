@@ -10,9 +10,9 @@ const createUserIcon = (heading = 0) => {
         width: 32px;
         height: 32px;
         background: #4f46e5;
-        border: 3.5px solid #ffffff;
+        border: 3px solid #ffffff;
         border-radius: 50%;
-        box-shadow: 0 4px 14px rgba(79, 70, 229, 0.45);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -42,10 +42,10 @@ const destIcon = L.divIcon({
       width: 36px;
       height: 36px;
       background: #10b981;
-      border: 3.5px solid #ffffff;
+      border: 3px solid #ffffff;
       border-radius: 50% 50% 50% 0;
       transform: rotate(-45deg);
-      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.45);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
       display: flex;
       align-items: center;
       justify-content: center;

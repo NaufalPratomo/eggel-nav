@@ -111,21 +111,21 @@ export default function NavigationHUD({
   const isDark = theme === "dark";
 
   return (
-    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 z-[1000]">
+    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-3.5 z-[1000]">
       {/* Top Banner: Next Maneuver */}
       <div
-        className={`pointer-events-auto rounded-3xl p-4 shadow-2xl border max-w-lg mx-auto w-full transition-all ${
+        className={`pointer-events-auto rounded-2xl p-4 shadow-lg border max-w-lg mx-auto w-full transition-colors ${
           isDark
-            ? "bg-slate-900/95 text-white border-slate-800"
-            : "bg-white/95 text-slate-800 border-slate-100"
+            ? "bg-slate-900 text-white border-slate-800"
+            : "bg-white text-slate-900 border-slate-200"
         }`}
       >
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3.5">
           <div
-            className={`p-3 rounded-2xl flex items-center justify-center shrink-0 border ${
+            className={`p-2.5 rounded-xl flex items-center justify-center shrink-0 border ${
               isDark
-                ? "bg-slate-800/90 border-slate-700"
-                : "bg-indigo-50 border-indigo-100/80 shadow-sm"
+                ? "bg-slate-800 border-slate-700"
+                : "bg-slate-100 border-slate-200 text-slate-800"
             }`}
           >
             {getManeuverIcon(currentStep?.modifier, currentStep?.type, theme)}
@@ -140,17 +140,17 @@ export default function NavigationHUD({
                 {formatDistance(distanceToNextStep)}
               </span>
               <span
-                className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
+                className={`text-xs font-semibold px-2 py-0.5 rounded-lg border ${
                   isDark
-                    ? "bg-blue-500/20 text-blue-300 border-blue-500/30"
-                    : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                    ? "bg-slate-800 text-slate-300 border-slate-700"
+                    : "bg-slate-100 text-slate-700 border-slate-200"
                 }`}
               >
                 {formatManeuverBadge(currentStep?.modifier, currentStep?.type, lang)}
               </span>
             </div>
             <p
-              className={`text-sm font-medium truncate mt-0.5 ${
+              className={`text-xs font-medium truncate mt-0.5 ${
                 isDark ? "text-slate-300" : "text-slate-600"
               }`}
             >
@@ -163,15 +163,15 @@ export default function NavigationHUD({
         {lastAlertSent && (
           <div
             className={`mt-3 pt-2.5 border-t flex items-center justify-between text-xs ${
-              isDark ? "border-slate-800 text-emerald-400" : "border-slate-100 text-emerald-600"
+              isDark ? "border-slate-800 text-emerald-400" : "border-slate-200 text-emerald-600"
             }`}
           >
             <span className="flex items-center gap-1.5 font-medium">
-              <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-500" />
+              <Radio className="w-3.5 h-3.5 text-emerald-500" />
               {t("alertSentBadge", lang)}
             </span>
             <span
-              className={`font-mono truncate max-w-[200px] ${
+              className={`font-mono text-[11px] truncate max-w-[200px] ${
                 isDark ? "text-slate-300" : "text-slate-600"
               }`}
             >
@@ -181,17 +181,17 @@ export default function NavigationHUD({
         )}
       </div>
 
-      {/* Bottom Dashboard: Styled cleanly like 4427554.jpg */}
+      {/* Bottom Dashboard: Clean, high-contrast, glanceable */}
       <div
-        className={`pointer-events-auto rounded-3xl p-4 shadow-2xl border max-w-lg mx-auto w-full transition-all ${
+        className={`pointer-events-auto rounded-2xl p-4 shadow-lg border max-w-lg mx-auto w-full transition-colors ${
           isDark
-            ? "bg-slate-900/95 text-white border-slate-800"
-            : "bg-white/95 text-slate-800 border-slate-100"
+            ? "bg-slate-900 text-white border-slate-800"
+            : "bg-white text-slate-900 border-slate-200"
         }`}
       >
         <div
           className={`grid grid-cols-3 gap-2 text-center pb-3 border-b ${
-            isDark ? "border-slate-800" : "border-slate-100"
+            isDark ? "border-slate-800" : "border-slate-200"
           }`}
         >
           {/* Column 1: Remaining Duration */}
@@ -223,7 +223,7 @@ export default function NavigationHUD({
                 isDark ? "text-slate-400" : "text-slate-500"
               }`}
             >
-              <NavIcon className="w-3.5 h-3.5 text-blue-500" />
+              <NavIcon className="w-3.5 h-3.5 text-slate-500" />
               {t("remainingDistance", lang)}
             </span>
             <div
@@ -259,16 +259,16 @@ export default function NavigationHUD({
 
         {/* Footer controls: Audio Keep-Alive Status + Stop Button */}
         <div className="flex items-center justify-between pt-3 gap-3">
-          <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
-            <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-            <span className={isDark ? "text-slate-400" : "text-slate-600"}>
+          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+            <span>
               {t("audioActive", lang)}
             </span>
           </div>
 
           <button
             onClick={onStopNavigation}
-            className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-2xl shadow-md transition active:scale-95"
+            className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl shadow-sm transition active:scale-95"
           >
             <X className="w-4 h-4" />
             {t("endNavBtn", lang)}
