@@ -4,51 +4,64 @@ import { sendTelegramAlert } from "../utils/telegram";
 import { formatTime24h } from "../utils/geo";
 import { t } from "../utils/i18n";
 
-function SmartwatchPreview({ language = "id", isDark = true }) {
-  const [selectedManeuver, setSelectedManeuver] = useState("right");
+const MANEUVER_TEST_PRESETS = {
+  right: {
+    label: "Kanan",
+    arrow: "===>>",
+    dist: "150m",
+    street: "Jl. Raya Purwosari",
+    testDesc: "Tes Kanan",
+  },
+  left: {
+    label: "Kiri",
+    arrow: "<<===",
+    dist: "150m",
+    street: "Jl. Margonda Raya",
+    testDesc: "Tes Kiri",
+  },
+  straight: {
+    label: "Lurus",
+    arrow: "^^^^^",
+    dist: "500m",
+    street: "Jl. Surabaya-Malang",
+    testDesc: "Tes Lurus",
+  },
+  uturn: {
+    label: "U-Turn",
+    arrow: "<<=||",
+    dist: "100m",
+    street: "Jl. Ahmad Yani",
+    testDesc: "Tes U-Turn",
+  },
+  sharp_right: {
+    label: "Tajam",
+    arrow: "|==>>",
+    dist: "100m",
+    street: "Jl. Tikungan Tajam",
+    testDesc: "Tes Tajam",
+  },
+};
 
-  const previewData = {
-    right: {
-      line1: "[150m]  ======>>",
-      line2: "Jl. Raya Purwosari",
-      label: "Kanan",
-    },
-    left: {
-      line1: "[150m]  <<======",
-      line2: "Jl. Raya Purwosari",
-      label: "Kiri",
-    },
-    straight: {
-      line1: "[500m]  ^^^^^^^^",
-      line2: "Jl. Malang-Sby",
-      label: "Lurus",
-    },
-    uturn: {
-      line1: "[100m]  <<====||",
-      line2: "Jl. Ahmad Yani",
-      label: "U-Turn",
-    },
-  };
-
-  const curr = previewData[selectedManeuver] || previewData.right;
+function SmartwatchPreview({ selectedManeuver, onSelectManeuver, language = "id", isDark = true }) {
+  const curr = MANEUVER_TEST_PRESETS[selectedManeuver] || MANEUVER_TEST_PRESETS.right;
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <span className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? "text-zinc-400" : "text-slate-600"}`}>
-          {language === "en" ? "Watch Screen Fit Preview" : "Simulasi Pas Layar Jam"}
+          {language === "en" ? "Select Sign to Test" : "Pilih Arah Belokan untuk Diuji"}
         </span>
-        <div className="flex gap-1">
-          {Object.entries(previewData).map(([key, item]) => (
+        <div className="flex gap-1 flex-wrap justify-end">
+          {Object.entries(MANEUVER_TEST_PRESETS).map(([key, item]) => (
             <button
               key={key}
               type="button"
-              onClick={() => setSelectedManeuver(key)}
+              onClick={() => onSelectManeuver(key)}
               className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition ${
                 selectedManeuver === key
                   ? isDark
-                    ? "bg-[#d2fc15] text-[#0f0f12]"
-                    : "bg-slate-900 text-white"
+                    ? "bg-[#d2fc15] text-[#0f0f12] shadow-sm"
+                    : "bg-slate-900 text-white shadow-sm"
                   : isDark
                   ? "bg-[#222228] text-zinc-400 hover:text-white"
                   : "bg-slate-100 text-slate-600 hover:text-slate-900"
@@ -87,10 +100,10 @@ function SmartwatchPreview({ language = "id", isDark = true }) {
             {/* Navigation Message (Centered in the widest section of the round screen) */}
             <div className="my-auto py-1">
               <div className="font-mono text-xs font-black text-white tracking-wide">
-                {curr.line1}
+                [{curr.dist}]  {curr.arrow}
               </div>
               <div className="font-sans text-[11px] font-medium text-zinc-300 truncate mt-1">
-                {curr.line2}
+                {curr.street}
               </div>
             </div>
 
@@ -103,8 +116,8 @@ function SmartwatchPreview({ language = "id", isDark = true }) {
       </div>
       <p className="text-[10px] text-center text-zinc-400">
         {language === "en"
-          ? "ASCII arrows render 100% on RTOS and fit perfectly above the bottom button"
-          : "Format 2 baris pas di tengah layar jam bulat tanpa terhalang tombol bawah"}
+          ? "Compact 5-char arrow fits in 13 chars - 100% no line breaking on round screens"
+          : "Panah 5 karakter (13 huruf) - dijamin pas 1 baris tanpa terpotong"}
       </p>
     </div>
   );
@@ -118,10 +131,12 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
   const [alert1Dist, setAlert1Dist] = useState(settings?.alert1Dist || 150);
   const [alert2Dist, setAlert2Dist] = useState(settings?.alert2Dist || 40);
   const [language, setLanguage] = useState(settings?.language || "id");
+  const [selectedManeuver, setSelectedManeuver] = useState("right");
   const [testStatus, setTestStatus] = useState(null);
   const [testing, setTesting] = useState(false);
 
   const isDark = theme === "dark";
+  const activePreset = MANEUVER_TEST_PRESETS[selectedManeuver] || MANEUVER_TEST_PRESETS.right;
 
   const handleTestVibration = async () => {
     if (!botToken || !chatId) {
@@ -134,10 +149,11 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
 
     const now = formatTime24h();
 
-    const isEn = language === "en";
-    const message = isEn
-      ? `[TEST 100m]  <<======\nMain Street Avenue\nVibration OK (${now})`
-      : `[TEST 100m]  <<======\nJl. Margonda Raya\nGetar OK (${now} WIB)`;
+    // Dynamically send the currently selected maneuver sign!
+    // Line 1: [150m]  ===>>  (Exactly 13 characters! 100% fits on 1 line, zero wrap)
+    // Line 2: Jl. Raya Purwosari (18 characters)
+    // Line 3: Tes Kanan: 18:58   (16 characters)
+    const message = `[${activePreset.dist}]  ${activePreset.arrow}\n${activePreset.street}\n${activePreset.testDesc}: ${now}`;
 
     const result = await sendTelegramAlert(botToken, chatId, message);
     setTesting(false);
@@ -145,7 +161,7 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
     if (result.success) {
       setTestStatus({
         ok: true,
-        msg: t("testSuccess", language),
+        msg: `${t("testSuccess", language)} (${activePreset.label})`,
       });
     } else {
       setTestStatus({
@@ -348,10 +364,15 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
 
           {/* Sized Smartwatch Preview matching user's round watch screen */}
           <div className="pt-2 border-t border-zinc-200 dark:border-[#27272e]">
-            <SmartwatchPreview language={language} isDark={isDark} />
+            <SmartwatchPreview
+              selectedManeuver={selectedManeuver}
+              onSelectManeuver={setSelectedManeuver}
+              language={language}
+              isDark={isDark}
+            />
           </div>
 
-          {/* Test Vibration Button */}
+          {/* Test Vibration Button (Sends the active maneuver preset) */}
           <div className="pt-1">
             <button
               onClick={handleTestVibration}
@@ -363,7 +384,9 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
               }`}
             >
               <Bell className={`w-4 h-4 ${isDark ? "text-[#d2fc15]" : "text-slate-800"}`} />
-              {testing ? t("testingVibration", language) : t("testVibrationBtn", language)}
+              {testing
+                ? t("testingVibration", language)
+                : `${t("testVibrationBtn", language)} (${activePreset.label})`}
             </button>
 
             {testStatus && (

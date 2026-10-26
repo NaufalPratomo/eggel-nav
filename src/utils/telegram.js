@@ -30,74 +30,65 @@ export const sendTelegramAlert = async (token, chatId, text) => {
 };
 
 /**
- * 100% RTOS Smartwatch-Compatible ASCII Navigation Arrows.
+ * Compact 5-character ASCII Navigation Arrows tailored for round smartwatches.
  *
- * WHY THIS IS CRUCIAL:
- * RTOS smartwatches (Eggel Tempo series, Xiaomi Band, Amazfit, Da Fit, GloryFit, etc.)
- * use a minimal bitmap font ROM limited strictly to standard 7-bit ASCII (0x20 - 0x7E).
- * Multi-byte Unicode characters (Box Drawings U+2500, Geometric Shapes U+25A0, or Emojis)
- * are NOT in the watch's font table and are silently skipped/dropped by the watch LCD driver.
- *
- * Using high-contrast ASCII symbols guarantees the arrow ALWAYS appears on the watch screen,
- * fits the round display geometry, and eliminates word clutter.
+ * Screen width on circular watches is ~16-18 characters at the top band.
+ * Using a 5-char arrow with [150m] totals 13 characters, leaving 4+ chars
+ * of safety margin so the arrow NEVER breaks across lines (e.g. no ugly "==" wrap).
  */
 export const getManeuverArrowText = (modifier, maneuverType) => {
   const mod = (modifier || "").toLowerCase();
   const type = (maneuverType || "").toLowerCase();
 
-  // U-Turn (Loop stem and leftward return arrow)
+  // U-Turn (Loop stem and left return arrow: 5 chars)
   if (mod.includes("uturn") || mod.includes("u-turn") || type.includes("uturn")) {
-    return "<<====||";
+    return "<<=||";
   }
-  // Sharp Left
+  // Sharp Left (5 chars)
   if (mod.includes("sharp left")) {
-    return "<<====|";
+    return "<<==|";
   }
-  // Slight Left (Angled diagonal return)
+  // Slight Left (5 chars)
   if (mod.includes("slight left")) {
-    return "<<\\\\====";
+    return "<\\\\==";
   }
-  // Turn Left
+  // Turn Left (5 chars)
   if (mod.includes("left")) {
-    return "<<======";
+    return "<<===";
   }
-  // Sharp Right
+  // Sharp Right (5 chars)
   if (mod.includes("sharp right")) {
-    return "|====>>";
+    return "|==>>";
   }
-  // Slight Right (Angled diagonal forward)
+  // Slight Right (5 chars)
   if (mod.includes("slight right")) {
-    return "====//>>";
+    return "==//>";
   }
-  // Turn Right
+  // Turn Right (5 chars)
   if (mod.includes("right")) {
-    return "======>>";
+    return "===>>";
   }
-  // Roundabout / Rotary
+  // Roundabout / Rotary (5 chars)
   if (type.includes("roundabout") || type.includes("rotary")) {
-    return "(( O ))>>";
+    return "((O))";
   }
   // Arrived / Destination
   if (type.includes("arrive") || type.includes("destination")) {
-    return "* FINISH *";
+    return "*FINISH*";
   }
   // Fork / Ramp
   if (type.includes("fork")) {
-    return mod.includes("left") ? "<<======" : "======>>";
+    return mod.includes("left") ? "<<===" : "===>>";
   }
-  // Straight ahead
-  return "^^^^^^^^";
+  // Straight ahead (5 chars)
+  return "^^^^^";
 };
 
 /**
  * Format instructions specifically tailored for round smartwatch screens (e.g. Eggel Tempo):
- * - Max 18-20 characters per line to avoid circular screen edge clipping.
- * - 2-3 lines maximum so text stays clear above the bottom trash/delete button.
- * - Bold ASCII arrows that are 100% visible on every RTOS watch.
- *
- * Example output:
- * [150m]  ======>>
- * Jl. Raya Purwosari
+ * - Line 1: [150m]  ===>>  (Exactly 13 characters, NEVER wraps on circular screens)
+ * - Line 2: Jl. Raya Purwosari (Max 28 chars, wraps at most to line 3)
+ * - Total lines: 2 to 3 lines max (safely stays clear of bottom trash button)
  */
 export const formatManeuverMessage = (
   distanceMeters,
@@ -120,12 +111,12 @@ export const formatManeuverMessage = (
     streetName && streetName.trim().length > 0 ? streetName.trim() : defaultStreet;
 
   // Trim long street names to fit round screen without overflowing into > 2 lines
-  if (cleanStreet.length > 34) {
-    cleanStreet = cleanStreet.slice(0, 31).trim() + "...";
+  if (cleanStreet.length > 28) {
+    cleanStreet = cleanStreet.slice(0, 25).trim() + "...";
   }
 
   // Urgent marker when imminent (<= 40m)
-  const urgentMark = isFinal ? " !!" : "";
+  const urgentMark = isFinal ? " !" : "";
 
   return `[${distText}]  ${arrow}${urgentMark}\n${cleanStreet}`;
 };
