@@ -109,12 +109,16 @@ export default function App() {
   const currentStepIndexRef = useRef(0);
   const lastRerouteTimeRef = useRef(0);
   const lastPreviewRouteCalcTimeRef = useRef(0);
+  const lastGpsTimestampRef = useRef(0);
+  const hasFixedLocationRef = useRef(false);
+  const watchIdRef = useRef(null);
   const alertTrackerRef = useRef({
     stepIndex: 0,
     alert1Sent: false,
     alert2Sent: false,
     lastAlertTime: 0,
     minDist: Infinity,
+    minDistToDest: Infinity,
   });
 
   // Keep refs synchronized with React state
@@ -192,15 +196,32 @@ export default function App() {
       const idx = currentStepIndexRef.current;
       const isEn = activeSettings.language === "en";
 
-      // Final destination reached
-      if (idx >= steps.length) {
+      // Direct straight-line distance to destination
+      const distToDest = activeDest
+        ? calculateHaversineDistance(
+            currentPos.lat,
+            currentPos.lng,
+            activeDest.lat,
+            activeDest.lng
+          )
+        : Infinity;
+
+      // Check if on final step leading to destination
+      const isFinalStep = idx >= steps.length - 1;
+
+      const triggerArrival = () => {
         const cleanDestName = (activeDest?.name || "Tujuan").slice(0, 28);
         const arriveMsg = isEn
-          ? `[ARRIVED]  * FINISH *\n${cleanDestName}`
-          : `[TIBA]  * FINISH *\n${cleanDestName}`;
+          ? `[ARRIVED]  *FINISH*\n${cleanDestName}`
+          : `[TIBA]  *FINISH*\n${cleanDestName}`;
         sendTelegramAlert(activeSettings.botToken, activeSettings.chatId, arriveMsg);
         setLastAlertSent(t("arrived", activeSettings.language));
         handleStopNavigation();
+      };
+
+      // 1. Final destination reached (index exceeded)
+      if (idx >= steps.length) {
+        triggerArrival();
         return;
       }
 
@@ -220,71 +241,98 @@ export default function App() {
           alert2Sent: false,
           lastAlertTime: tracker.lastAlertTime || 0,
           minDist: distToManeuver,
+          minDistToDest: distToDest,
         };
       } else {
         tracker.minDist = Math.min(tracker.minDist, distToManeuver);
+        tracker.minDistToDest = Math.min(tracker.minDistToDest || Infinity, distToDest);
       }
 
-      // Check step advancement criteria
-      const hasNext = idx < steps.length - 1;
-      let distToNext = Infinity;
-      if (hasNext) {
-        distToNext = calculateHaversineDistance(
+      // 2. ROBUST FINAL DESTINATION ARRIVAL CHECK
+      // Solves: "saat saya sudah sampai tujuan / mendekati tujuan bukannya finish malah melebihi tujuan"
+      if (isFinalStep || distToDest <= 50) {
+        // A. Direct arrival within 30m of destination pin or 25m of final maneuver point
+        const withinArrivalRadius = distToDest <= 30 || distToManeuver <= 25;
+
+        // B. Closest approach passing: approached within 45m, and now distance is increasing
+        // (handles when building is set back from road or parking across the street)
+        const passedClosestApproach =
+          (tracker.minDistToDest <= 45 || tracker.minDist <= 45) &&
+          (distToDest > tracker.minDistToDest + 10 || distToManeuver > tracker.minDist + 10);
+
+        // C. Stopped near destination (< 1.5 m/s or < 5 km/h within 45m)
+        const stoppedNearDestination =
+          (distToDest <= 45 || distToManeuver <= 45) &&
+          currentPos.speed != null &&
+          currentPos.speed < 1.5;
+
+        if (withinArrivalRadius || passedClosestApproach || stoppedNearDestination) {
+          triggerArrival();
+          return;
+        }
+      }
+
+      // 3. INTERMEDIATE STEP ADVANCEMENT CRITERIA (when not final step)
+      if (!isFinalStep) {
+        const distToNext = calculateHaversineDistance(
           currentPos.lat,
           currentPos.lng,
           steps[idx + 1].location.lat,
           steps[idx + 1].location.lng
         );
-      }
 
-      // 1. Reached maneuver point (< 18m)
-      const reachedManeuver = distToManeuver < 18;
+        // 1. Reached maneuver point (< 20m)
+        const reachedManeuver = distToManeuver < 20;
 
-      // 2. Moving away from maneuver towards next step:
-      // Approached the intersection (minDist <= 45m), now moving away (dist > minDist + 10m),
-      // and within the next step's expected range
-      const movingAwayTowardsNext =
-        hasNext &&
-        tracker.minDist <= 45 &&
-        distToManeuver > tracker.minDist + 10 &&
-        (distToNext < (currentStep.distance || 500) + 30 || distToNext < distToManeuver);
+        // 2. Moving away from maneuver towards next step:
+        // Approached intersection (minDist <= 50m), now moving away, and within next step range
+        const movingAwayTowardsNext =
+          tracker.minDist <= 50 &&
+          distToManeuver > tracker.minDist + 10 &&
+          (distToNext < (currentStep.distance || 500) + 35 || distToNext < distToManeuver);
 
-      // 3. Already within close proximity of next maneuver (< 20m)
-      const alreadyAtNext = hasNext && distToNext < 20;
+        // 3. Already within close proximity of next maneuver (< 25m)
+        const alreadyAtNext = distToNext < 25;
 
-      if (reachedManeuver || movingAwayTowardsNext || alreadyAtNext) {
-        const nextIdx = idx + 1;
-        if (nextIdx >= steps.length) {
-          const arriveMsg = isEn
-            ? `ARRIVED AT DESTINATION\nYou have reached ${activeDest?.name || "Destination"}!`
-            : `TIBA DI TUJUAN\nAnda telah sampai di ${activeDest?.name || "Tujuan"}!`;
-          sendTelegramAlert(activeSettings.botToken, activeSettings.chatId, arriveMsg);
-          setLastAlertSent(t("arrived", activeSettings.language));
-          handleStopNavigation();
+        if (reachedManeuver || movingAwayTowardsNext || alreadyAtNext) {
+          const nextIdx = idx + 1;
+          if (nextIdx >= steps.length) {
+            triggerArrival();
+            return;
+          }
+
+          currentStepIndexRef.current = nextIdx;
+          setCurrentStepIndex(nextIdx);
+          alertTrackerRef.current = {
+            stepIndex: nextIdx,
+            alert1Sent: false,
+            alert2Sent: false,
+            lastAlertTime: Date.now(),
+            minDist: distToNext,
+            minDistToDest: distToDest,
+          };
           return;
         }
-
-        currentStepIndexRef.current = nextIdx;
-        setCurrentStepIndex(nextIdx);
-        alertTrackerRef.current = {
-          stepIndex: nextIdx,
-          alert1Sent: false,
-          alert2Sent: false,
-          lastAlertTime: Date.now(),
-          minDist: distToNext,
-        };
-        return;
       }
 
-      // Proximity Alert Triggers
+      // 4. SPEED-COMPENSATED PROXIMITY ALERT TRIGGERS
+      // When riding a motorbike at 40-50 km/h (11-14 m/s), reaction + network latency
+      // takes 2-3 seconds (~25-35m travel). We dynamically expand the alert distance
+      // so notifications arrive on time without delay in the pocket!
       const now = Date.now();
-      const throttleMs = 1500;
+      const throttleMs = 1200;
+      const speed = currentPos.speed || 0; // m/s
+      const speedBuffer = Math.round(speed * 3.0);
+      const alert2Threshold = Math.max(activeSettings.alert2Dist || 40, 40 + speedBuffer);
+      const alert1Threshold = Math.max(activeSettings.alert1Dist || 150, 150 + speedBuffer * 2);
 
-      // Alert 2: Imminent maneuver (<= alert2Dist, default 40m)
-      if (distToManeuver <= activeSettings.alert2Dist && !tracker.alert2Sent) {
+      const targetDist = isFinalStep ? Math.min(distToManeuver, distToDest) : distToManeuver;
+
+      // Alert 2: Imminent maneuver execution
+      if (targetDist <= alert2Threshold && !tracker.alert2Sent) {
         if (now - tracker.lastAlertTime >= throttleMs) {
           const alertMsg = formatManeuverMessage(
-            distToManeuver,
+            targetDist,
             currentStep.type,
             currentStep.modifier,
             currentStep.name,
@@ -298,11 +346,11 @@ export default function App() {
           setLastAlertSent(alertMsg.split("\n")[0]);
         }
       }
-      // Alert 1: Advance warning (<= alert1Dist, default 150m)
-      else if (distToManeuver <= activeSettings.alert1Dist && !tracker.alert1Sent) {
+      // Alert 1: Advance warning
+      else if (targetDist <= alert1Threshold && !tracker.alert1Sent) {
         if (now - tracker.lastAlertTime >= throttleMs) {
           const alertMsg = formatManeuverMessage(
-            distToManeuver,
+            targetDist,
             currentStep.type,
             currentStep.modifier,
             currentStep.name,
@@ -316,8 +364,10 @@ export default function App() {
         }
       }
 
-      // Check for off-route deviation (>75m away from polyline using segment projection)
+      // 5. Off-route deviation check (>75m away from polyline, NEVER when near destination!)
       if (
+        !isFinalStep &&
+        distToDest > 75 &&
         activeRoute.geometry &&
         activeRoute.geometry.coordinates &&
         now - lastRerouteTimeRef.current >= 10000
@@ -347,10 +397,11 @@ export default function App() {
                 alert2Sent: false,
                 lastAlertTime: Date.now(),
                 minDist: Infinity,
+                minDistToDest: distToDest,
               };
               const rerouteMsg = isEn
-                ? "[REROUTE]  ^^^^^^^^\nRecalculating..."
-                : "[RUTE BARU]  ^^^^^^^^\nMenghitung rute...";
+                ? "[REROUTE]  ^^^^^\nRecalculating..."
+                : "[RUTE BARU]  ^^^^^\nMenghitung rute...";
               sendTelegramAlert(
                 activeSettings.botToken,
                 activeSettings.chatId,
@@ -367,120 +418,163 @@ export default function App() {
     [handleStopNavigation]
   );
 
+  // Central GPS position processor (used by both watchPosition and forced background polling)
+  const handleGpsPosition = useCallback(
+    (pos) => {
+      lastGpsTimestampRef.current = Date.now();
+      const { latitude, longitude, heading, speed, accuracy } = pos.coords;
+      const prev = prevPosRef.current;
+
+      let computedHeading = heading;
+      let computedSpeed = speed;
+
+      if (computedHeading == null || isNaN(computedHeading)) {
+        if (prev) {
+          const dist = calculateHaversineDistance(prev.lat, prev.lng, latitude, longitude);
+          if (dist > 3) {
+            computedHeading = calculateBearing(prev.lat, prev.lng, latitude, longitude);
+          } else {
+            computedHeading = prev.heading || 0;
+          }
+        } else {
+          computedHeading = 0;
+        }
+      }
+
+      if (computedSpeed == null || isNaN(computedSpeed)) {
+        if (prev && prev.timestamp) {
+          const dt = (pos.timestamp - prev.timestamp) / 1000;
+          if (dt > 0.5) {
+            const dist = calculateHaversineDistance(prev.lat, prev.lng, latitude, longitude);
+            computedSpeed = dist / dt;
+          }
+        }
+      }
+
+      let finalSpeed = computedSpeed || 0;
+      // Suppress stationary GPS drift (< 2 meters) and apply smoothing filter
+      if (prev) {
+        const moveDist = calculateHaversineDistance(prev.lat, prev.lng, latitude, longitude);
+        if (moveDist < 2.0 && (!speed || speed < 0.5)) {
+          finalSpeed = 0;
+        } else if (prev.speed != null && prev.speed > 0) {
+          finalSpeed = 0.4 * finalSpeed + 0.6 * prev.speed;
+        }
+      }
+
+      const newPos = {
+        lat: latitude,
+        lng: longitude,
+        heading: computedHeading || 0,
+        speed: Math.max(0, finalSpeed),
+        accuracy: accuracy,
+        timestamp: pos.timestamp,
+      };
+
+      prevPosRef.current = newPos;
+      setUserPosition(newPos);
+      setGpsStatus("ready");
+      setGpsErrorMsg(null);
+
+      // Auto-fetch route if destination was already selected before GPS fixed
+      if (!hasFixedLocationRef.current) {
+        hasFixedLocationRef.current = true;
+        if (destinationRef.current && !routeRef.current) {
+          calculateRouteTo(newPos, destinationRef.current);
+        }
+      } else if (!isNavigatingRef.current && destinationRef.current && routeRef.current) {
+        // If user moves in preview mode (> 20m from route starting coordinate),
+        // auto-recalculate route from current real-time user location
+        const startCoords = routeRef.current.geometry?.coordinates?.[0];
+        if (startCoords) {
+          const distFromRouteStart = calculateHaversineDistance(
+            newPos.lat,
+            newPos.lng,
+            startCoords[1], // lat
+            startCoords[0]  // lng
+          );
+          const now = Date.now();
+          if (distFromRouteStart > 20 && now - lastPreviewRouteCalcTimeRef.current >= 3000) {
+            lastPreviewRouteCalcTimeRef.current = now;
+            calculateRouteTo(newPos, destinationRef.current);
+          }
+        }
+      }
+
+      // Live turn-by-turn processing if navigating
+      if (isNavigatingRef.current) {
+        processTurnByTurn(newPos);
+      }
+    },
+    [calculateRouteTo, processTurnByTurn]
+  );
+
+  // Background Web Worker Heartbeat callback
+  // When phone is in pocket with screen off, active polling prevents iOS GPS sleep
+  const handleHeartbeat = useCallback(() => {
+    if (!isNavigatingRef.current) return;
+    const now = Date.now();
+    const elapsed = now - lastGpsTimestampRef.current;
+
+    // If no GPS update received in 3.5s while navigating, force-poll location
+    if (elapsed > 3500 && "geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          handleGpsPosition(pos);
+        },
+        (err) => {
+          console.warn("Background forced GPS poll:", err);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 3000,
+          maximumAge: 0,
+        }
+      );
+    }
+  }, [handleGpsPosition]);
+
   // Geolocation watcher
   useEffect(() => {
     if (!("geolocation" in navigator)) return;
 
-    let hasFixedLocation = false;
-
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        const { latitude, longitude, heading, speed, accuracy } = pos.coords;
-        const prev = prevPosRef.current;
-
-        let computedHeading = heading;
-        let computedSpeed = speed;
-
-        if (computedHeading == null || isNaN(computedHeading)) {
-          if (prev) {
-            const dist = calculateHaversineDistance(prev.lat, prev.lng, latitude, longitude);
-            if (dist > 3) {
-              computedHeading = calculateBearing(prev.lat, prev.lng, latitude, longitude);
-            } else {
-              computedHeading = prev.heading || 0;
-            }
-          } else {
-            computedHeading = 0;
-          }
-        }
-
-        if (computedSpeed == null || isNaN(computedSpeed)) {
-          if (prev && prev.timestamp) {
-            const dt = (pos.timestamp - prev.timestamp) / 1000;
-            if (dt > 0.5) {
-              const dist = calculateHaversineDistance(prev.lat, prev.lng, latitude, longitude);
-              computedSpeed = dist / dt;
-            }
-          }
-        }
-
-        let finalSpeed = computedSpeed || 0;
-        // Suppress stationary GPS drift (< 2 meters) and apply smoothing filter
-        if (prev) {
-          const moveDist = calculateHaversineDistance(prev.lat, prev.lng, latitude, longitude);
-          if (moveDist < 2.0 && (!speed || speed < 0.5)) {
-            finalSpeed = 0;
-          } else if (prev.speed != null && prev.speed > 0) {
-            finalSpeed = 0.4 * finalSpeed + 0.6 * prev.speed;
-          }
-        }
-
-        const newPos = {
-          lat: latitude,
-          lng: longitude,
-          heading: computedHeading || 0,
-          speed: Math.max(0, finalSpeed),
-          accuracy: accuracy,
-          timestamp: pos.timestamp,
-        };
-
-        prevPosRef.current = newPos;
-        setUserPosition(newPos);
-        setGpsStatus("ready");
-        setGpsErrorMsg(null);
-
-        // Auto-fetch route if destination was already selected before GPS fixed
-        if (!hasFixedLocation) {
-          hasFixedLocation = true;
-          if (destinationRef.current && !routeRef.current) {
-            calculateRouteTo(newPos, destinationRef.current);
-          }
-        } else if (!isNavigatingRef.current && destinationRef.current && routeRef.current) {
-          // If user moves in preview mode (> 20m from route starting coordinate),
-          // auto-recalculate route from the current real-time user location
-          const startCoords = routeRef.current.geometry?.coordinates?.[0];
-          if (startCoords) {
-            const distFromRouteStart = calculateHaversineDistance(
-              newPos.lat,
-              newPos.lng,
-              startCoords[1], // lat
-              startCoords[0]  // lng
-            );
-            const now = Date.now();
-            if (distFromRouteStart > 20 && now - lastPreviewRouteCalcTimeRef.current >= 3000) {
-              lastPreviewRouteCalcTimeRef.current = now;
-              calculateRouteTo(newPos, destinationRef.current);
-            }
-          }
-        }
-
-        // Live turn-by-turn processing if navigating
-        if (isNavigatingRef.current) {
-          processTurnByTurn(newPos);
-        }
-      },
-      (err) => {
-        console.warn("GPS error:", err);
-        setGpsStatus("error");
-        if (err.code === 1) {
-          setGpsErrorMsg("Izin lokasi ditolak. Aktifkan lokasi di pengaturan browser.");
-        } else if (err.code === 2) {
-          setGpsErrorMsg("Sinyal GPS tidak ditemukan.");
-        } else {
-          setGpsErrorMsg("Waktu tunggu GPS habis.");
-        }
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 1000,
-        timeout: 10000,
+    const startWatching = () => {
+      if (watchIdRef.current != null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
       }
-    );
+
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        (pos) => {
+          handleGpsPosition(pos);
+        },
+        (err) => {
+          console.warn("GPS error:", err);
+          setGpsStatus("error");
+          if (err.code === 1) {
+            setGpsErrorMsg("Izin lokasi ditolak. Aktifkan lokasi di pengaturan browser.");
+          } else if (err.code === 2) {
+            setGpsErrorMsg("Sinyal GPS tidak ditemukan.");
+          } else {
+            setGpsErrorMsg("Waktu tunggu GPS habis.");
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 1000,
+          timeout: 10000,
+        }
+      );
+    };
+
+    startWatching();
 
     return () => {
-      navigator.geolocation.clearWatch(watchId);
+      if (watchIdRef.current != null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
     };
-  }, [calculateRouteTo, processTurnByTurn]);
+  }, [handleGpsPosition]);
 
   // Destination pick handlers
   const handleSelectDestination = (place) => {
@@ -577,17 +671,18 @@ export default function App() {
       alert2Sent: false,
       lastAlertTime: 0,
       minDist: Infinity,
+      minDistToDest: Infinity,
     };
 
-    // Activate Silent Audio Loop & WakeLock for iOS background execution
-    await keepAlive.start();
+    // Activate Silent Audio Loop, WebWorker heartbeat, & WakeLock for iOS background execution
+    await keepAlive.start(handleHeartbeat);
 
     // Send initial Telegram notification to confirm connection with smartwatch
     const isEn = lang === "en";
     const cleanStartDest = (destination?.name || "Tujuan").slice(0, 24);
     const startMsg = isEn
-      ? `[START]  ^^^^^^^^\n${cleanStartDest}\n${formatDistance(activeRoute.distance)}`
-      : `[MULAI]  ^^^^^^^^\n${cleanStartDest}\n${formatDistance(activeRoute.distance)}`;
+      ? `[START]  ^^^^^\n${cleanStartDest}\n${formatDistance(activeRoute.distance)}`
+      : `[MULAI]  ^^^^^\n${cleanStartDest}\n${formatDistance(activeRoute.distance)}`;
     sendTelegramAlert(settings.botToken, settings.chatId, startMsg);
     setLastAlertSent(t("navStarted", lang));
   };
