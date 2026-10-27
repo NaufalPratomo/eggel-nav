@@ -36,6 +36,11 @@ export const translations = {
     audioActive: "Audio Keep-Alive Aktif",
     endNavBtn: "Akhiri",
     alertSentBadge: "Notif terkirim ke Eggel:",
+    pocketMode: "Mode Kantong",
+    pocketModeActive: "Mode Kantong Aktif",
+    pocketModeTip: "Masukkan HP ke saku dengan mode ini agar GPS iPhone tetap aktif.",
+    autoPocketMode: "Otomatis Buka Mode Kantong",
+    autoPocketModeDesc: "Langsung buka layar hitam anti-salah sentuh saat navigasi dimulai",
 
     // Search Modal
     searchPlaceholder: "Cari nama tempat, jalan, atau kota...",
@@ -101,6 +106,11 @@ export const translations = {
     audioActive: "Audio Keep-Alive Active",
     endNavBtn: "End",
     alertSentBadge: "Alert sent to Eggel:",
+    pocketMode: "Pocket Mode",
+    pocketModeActive: "Pocket Mode Active",
+    pocketModeTip: "Put phone into pocket with this mode to keep iPhone GPS alive.",
+    autoPocketMode: "Auto Open Pocket Mode",
+    autoPocketModeDesc: "Automatically open black screen with touch lock when navigation begins",
 
     // Search Modal
     searchPlaceholder: "Search place, street, or city...",

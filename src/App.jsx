@@ -3,6 +3,7 @@ import Map from "./components/Map";
 import NavigationHUD from "./components/NavigationHUD";
 import SearchModal from "./components/SearchModal";
 import SettingsModal from "./components/SettingsModal";
+import PocketMode from "./components/PocketMode";
 import { fetchRoute } from "./utils/osrm";
 import {
   calculateHaversineDistance,
@@ -34,6 +35,7 @@ const DEFAULT_SETTINGS = {
   alert1Dist: 150,
   alert2Dist: 40,
   language: "id",
+  autoPocketMode: true,
 };
 
 function getSavedSettings() {
@@ -94,6 +96,7 @@ export default function App() {
   const [isRouting, setIsRouting] = useState(false);
   const [routeError, setRouteError] = useState(null);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [isPocketMode, setIsPocketMode] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [lastAlertSent, setLastAlertSent] = useState(null);
 
@@ -107,6 +110,8 @@ export default function App() {
   const settingsRef = useRef(settings);
   const isNavigatingRef = useRef(false);
   const currentStepIndexRef = useRef(0);
+  const navStartTimeRef = useRef(0);
+  const offRouteCountRef = useRef(0);
   const lastRerouteTimeRef = useRef(0);
   const lastPreviewRouteCalcTimeRef = useRef(0);
   const lastGpsTimestampRef = useRef(0);
@@ -177,6 +182,8 @@ export default function App() {
   const handleStopNavigation = useCallback(() => {
     setIsNavigating(false);
     isNavigatingRef.current = false;
+    setIsPocketMode(false);
+    offRouteCountRef.current = 0;
     keepAlive.stop();
     const isEn = settingsRef.current?.language === "en";
     const stopMsg = isEn ? "[STOP]  * * *\nNavigation Ended" : "[SELESAI]  * * *\nNavigasi Selesai";
@@ -365,12 +372,17 @@ export default function App() {
       }
 
       // 5. Off-route deviation check (>75m away from polyline, NEVER when near destination!)
+      const timeSinceNavStart = now - (navStartTimeRef.current || 0);
+      const isGpsAccurate = currentPos.accuracy == null || currentPos.accuracy <= 35;
+
       if (
         !isFinalStep &&
-        distToDest > 75 &&
+        distToDest > 80 &&
+        timeSinceNavStart > 20000 &&
+        isGpsAccurate &&
         activeRoute.geometry &&
         activeRoute.geometry.coordinates &&
-        now - lastRerouteTimeRef.current >= 10000
+        now - lastRerouteTimeRef.current >= 30000
       ) {
         const minDistance = calculateDistanceToPolyline(
           currentPos.lat,
@@ -379,39 +391,45 @@ export default function App() {
         );
 
         if (minDistance > 75 && activeDest) {
-          console.log("Off-route detected:", minDistance.toFixed(1), "meters. Recalculating...");
-          lastRerouteTimeRef.current = now;
-          fetchRoute(
-            { lat: currentPos.lat, lng: currentPos.lng },
-            { lat: activeDest.lat, lng: activeDest.lng }
-          )
-            .then((newRoute) => {
-              setRoute(newRoute);
-              routeRef.current = newRoute;
-              const newStep = newRoute.steps.length > 1 ? 1 : 0;
-              currentStepIndexRef.current = newStep;
-              setCurrentStepIndex(newStep);
-              alertTrackerRef.current = {
-                stepIndex: newStep,
-                alert1Sent: false,
-                alert2Sent: false,
-                lastAlertTime: Date.now(),
-                minDist: Infinity,
-                minDistToDest: distToDest,
-              };
-              const rerouteMsg = isEn
-                ? "[REROUTE]  ^^^^^\nRecalculating..."
-                : "[RUTE BARU]  ^^^^^\nMenghitung rute...";
-              sendTelegramAlert(
-                activeSettings.botToken,
-                activeSettings.chatId,
-                rerouteMsg
-              );
-              setLastAlertSent(t("rerouted", activeSettings.language));
-            })
-            .catch((e) => {
-              console.warn("Reroute failed:", e);
-            });
+          offRouteCountRef.current = (offRouteCountRef.current || 0) + 1;
+          if (offRouteCountRef.current >= 3) {
+            console.log("Confirmed off-route:", minDistance.toFixed(1), "meters. Recalculating...");
+            offRouteCountRef.current = 0;
+            lastRerouteTimeRef.current = now;
+            fetchRoute(
+              { lat: currentPos.lat, lng: currentPos.lng },
+              { lat: activeDest.lat, lng: activeDest.lng }
+            )
+              .then((newRoute) => {
+                setRoute(newRoute);
+                routeRef.current = newRoute;
+                const newStep = newRoute.steps.length > 1 ? 1 : 0;
+                currentStepIndexRef.current = newStep;
+                setCurrentStepIndex(newStep);
+                alertTrackerRef.current = {
+                  stepIndex: newStep,
+                  alert1Sent: false,
+                  alert2Sent: false,
+                  lastAlertTime: Date.now(),
+                  minDist: Infinity,
+                  minDistToDest: distToDest,
+                };
+                const rerouteMsg = isEn
+                  ? "[REROUTE]  ^^^^^\nRecalculating..."
+                  : "[RUTE BARU]  ^^^^^\nMenghitung rute...";
+                sendTelegramAlert(
+                  activeSettings.botToken,
+                  activeSettings.chatId,
+                  rerouteMsg
+                );
+                setLastAlertSent(t("rerouted", activeSettings.language));
+              })
+              .catch((e) => {
+                console.warn("Reroute failed:", e);
+              });
+          }
+        } else if (minDistance <= 55) {
+          offRouteCountRef.current = 0;
         }
       }
     },
@@ -647,6 +665,15 @@ export default function App() {
 
     setIsNavigating(true);
     isNavigatingRef.current = true;
+    navStartTimeRef.current = Date.now();
+    lastRerouteTimeRef.current = Date.now();
+    offRouteCountRef.current = 0;
+
+    // Auto-enter Pocket Mode for motorcycle riding if enabled
+    if (settings.autoPocketMode !== false) {
+      setIsPocketMode(true);
+    }
+
     let startStep = activeRoute.steps.length > 1 ? 1 : 0;
     if (userPosition && activeRoute.steps.length > 2) {
       for (let i = 1; i < activeRoute.steps.length; i++) {
@@ -1080,8 +1107,22 @@ export default function App() {
           currentSpeed={userPosition?.speed}
           lastAlertSent={lastAlertSent}
           onStopNavigation={handleStopNavigation}
+          onEnterPocketMode={() => setIsPocketMode(true)}
           theme={theme}
           lang={lang}
+        />
+      )}
+
+      {/* OLED Pocket Mode for Motorcycle Riding with iPhone */}
+      {isNavigating && isPocketMode && (
+        <PocketMode
+          currentStep={currentStep}
+          distanceToNextStep={distToNextStep}
+          totalRemainingDistance={totalRemainingDistance}
+          totalRemainingDuration={totalRemainingDuration}
+          currentSpeed={userPosition?.speed}
+          onExit={() => setIsPocketMode(false)}
+          language={lang}
         />
       )}
 

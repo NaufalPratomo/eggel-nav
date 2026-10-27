@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Settings, X, Bell, Globe } from "lucide-react";
+import { Settings, X, Bell, Globe, Smartphone } from "lucide-react";
 import { sendTelegramAlert } from "../utils/telegram";
 import { formatTime24h } from "../utils/geo";
 import { t } from "../utils/i18n";
@@ -131,6 +131,9 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
   const [alert1Dist, setAlert1Dist] = useState(settings?.alert1Dist || 150);
   const [alert2Dist, setAlert2Dist] = useState(settings?.alert2Dist || 40);
   const [language, setLanguage] = useState(settings?.language || "id");
+  const [autoPocketMode, setAutoPocketMode] = useState(
+    settings?.autoPocketMode ?? true
+  );
   const [selectedManeuver, setSelectedManeuver] = useState("right");
   const [testStatus, setTestStatus] = useState(null);
   const [testing, setTesting] = useState(false);
@@ -180,6 +183,7 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
       alert1Dist: a1,
       alert2Dist: a2,
       language: language,
+      autoPocketMode: Boolean(autoPocketMode),
     });
     onClose();
   };
@@ -360,6 +364,56 @@ function SettingsForm({ settings, onClose, onSaveSettings, theme = "light" }) {
                 {t("alert2Desc", language)}
               </span>
             </div>
+          </div>
+
+          {/* Pocket Mode / Battery Saver Guard */}
+          <div
+            className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+              isDark ? "bg-[#1f1f25] border-[#2c2c36]" : "bg-slate-50 border-slate-200"
+            }`}
+          >
+            <div className="flex items-start gap-2.5">
+              <div
+                className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                  isDark ? "bg-[#272732] text-[#d2fc15]" : "bg-slate-200 text-slate-800"
+                }`}
+              >
+                <Smartphone className="w-4 h-4" />
+              </div>
+              <div>
+                <span className={`text-xs font-bold block ${isDark ? "text-white" : "text-slate-900"}`}>
+                  {t("autoPocketMode", language)}
+                </span>
+                <span className="text-[11px] text-zinc-400 block leading-tight mt-0.5">
+                  {t("autoPocketModeDesc", language)}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setAutoPocketMode((prev) => !prev)}
+              className={`w-11 h-6 rounded-full transition-colors relative shrink-0 p-0.5 ${
+                autoPocketMode
+                  ? isDark
+                    ? "bg-[#d2fc15]"
+                    : "bg-slate-900"
+                  : isDark
+                  ? "bg-zinc-700"
+                  : "bg-slate-300"
+              }`}
+              aria-label={t("autoPocketMode", language)}
+            >
+              <div
+                className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+                  autoPocketMode
+                    ? isDark
+                      ? "translate-x-5 !bg-[#0f0f12]"
+                      : "translate-x-5"
+                    : "translate-x-0"
+                }`}
+              />
+            </button>
           </div>
 
           {/* Sized Smartwatch Preview matching user's round watch screen */}

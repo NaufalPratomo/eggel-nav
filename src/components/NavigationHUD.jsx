@@ -5,6 +5,7 @@ import {
   Clock,
   Navigation as NavIcon,
   Timer,
+  Smartphone,
 } from "lucide-react";
 import { formatDistance, formatDuration, formatTime24h, getTimeZoneLabel } from "../utils/geo";
 import { t } from "../utils/i18n";
@@ -233,6 +234,7 @@ export default function NavigationHUD({
   currentSpeed,
   lastAlertSent,
   onStopNavigation,
+  onEnterPocketMode,
   theme = "light",
   lang = "id",
 }) {
@@ -397,22 +399,41 @@ export default function NavigationHUD({
           </div>
         </div>
 
-        {/* Footer controls: Audio Keep-Alive Status + Stop Button */}
-        <div className="flex items-center justify-between pt-3 gap-3">
-          <div className="flex items-center gap-2 text-xs text-zinc-400 font-medium">
-            <span className={`inline-block w-2 h-2 rounded-full ${isDark ? "bg-[#d2fc15]" : "bg-emerald-500"}`} />
-            <span>
+        {/* Footer controls: Audio Keep-Alive Status + Pocket Mode + Stop Button */}
+        <div className="flex items-center justify-between pt-3 gap-2">
+          <div className="flex items-center gap-2 text-xs text-zinc-400 font-medium truncate">
+            <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${isDark ? "bg-[#d2fc15]" : "bg-emerald-500"}`} />
+            <span className="truncate">
               {t("audioActive", lang)}
             </span>
           </div>
 
-          <button
-            onClick={onStopNavigation}
-            className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-sm transition active:scale-95"
-          >
-            <X className="w-4 h-4" />
-            {t("endNavBtn", lang)}
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {onEnterPocketMode && (
+              <button
+                type="button"
+                onClick={onEnterPocketMode}
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border transition active:scale-95 shadow-sm ${
+                  isDark
+                    ? "bg-[#222228] hover:bg-[#2a2a32] border-[#2e2e38] text-[#d2fc15]"
+                    : "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-800"
+                }`}
+                title={t("pocketMode", lang)}
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>{t("pocketMode", lang)}</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={onStopNavigation}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-sm transition active:scale-95"
+            >
+              <X className="w-4 h-4" />
+              {t("endNavBtn", lang)}
+            </button>
+          </div>
         </div>
       </div>
     </div>
